@@ -1,0 +1,24 @@
+cat <<EOF > .gitignore
+# === Ignore Large Data and Output ===
+*.dat
+CR3BP_Poincare/20231110P02/
+source/**/poincare_output/
+source/**/old/
+
+# === Ignore Build/Cache/Editor Files ===
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
+
+# === Ignore LaTeX / Thesis Work ===
+lit_review/
+poincare_maps/
+*.aux
+*.log
+*.out
+*.pdf
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+EOF

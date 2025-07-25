@@ -7,25 +7,27 @@ import matplotlib.cm as cm
 from matplotlib.colors import Normalize
 from datetime import datetime
 import os
-
 import sys
+
+# === Path Setup ===
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'neptune_triton_models', 'r3bp_with_perturbations')))
-
-from functions import print_status
 from constants import M_neptune, M_triton, R_neptune_meters, J2_neptune, a_triton_meters
+from r3bp_calculations_02 import gradient_U
 
-# === System parameters ===
-mu = M_triton / (M_neptune + M_triton) # Dimensionless mass parameter
-R_nd = R_neptune_meters / a_triton_meters # Neptune radius in dimensionless units
-J2 = J2_neptune # J2 coefficient for Neptune
+# === System Parameters ===
+mu = M_triton / (M_neptune + M_triton)  # Dimensionless
+R_nd = R_neptune_meters / a_triton_meters
+J2 = J2_neptune
 
-# === Simulation Parameters ===
+# === User-Defined Parameters ===
 params = {
     'C': 2.999,
     'mu': mu,
     'J2': J2,
     'R_nd': R_nd,
-    'tlim': 5000.0,
+    'J2_enabled': False,  # Toggle perturbations
+    'integrator': 'DOP853',  # or 'LSODA'
+    'tlim': 10000.0,
     'dt': 0.01,
     'folder': "poincare_output",
     'plot': True,
@@ -34,7 +36,7 @@ params = {
 
 os.makedirs(params['folder'], exist_ok=True)
 
-# === Worker Function ===
+# === Dynamics ===
 def gradient_U_oblate(x, y, z, mu, J2, R):
     r1 = np.sqrt((x + mu)**2 + y**2 + z**2)
     r2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
@@ -44,52 +46,63 @@ def gradient_U_oblate(x, y, z, mu, J2, R):
     Omega_x = x - (1 - mu)*(x + mu)/r1**3 - mu*(x - (1 - mu))/r2**3 + f * (x + mu)
     Omega_y = y - (1 - mu)*y/r1**3 - mu*y/r2**3 + f * y
     Omega_z = -(1 - mu)*z/r1**3 - mu*z/r2**3 + A * z * (3 - 5 * z**2 / r1**2) / r1**5
-
     return Omega_x, Omega_y, Omega_z
+
+def equations_cr3bp(t, state, mu):
+    x, y, z, vx, vy, vz = state
+    Ux, Uy, Uz = gradient_U(x, y, z, mu)
+    return [vx, vy, vz, Ux + 2 * vy, Uy - 2 * vx, Uz]
 
 def equations_oblate(t, state, mu, J2, R):
     x, y, z, vx, vy, vz = state
     Ux, Uy, Uz = gradient_U_oblate(x, y, z, mu, J2, R)
-    ax = Ux + 2 * vy
-    ay = Uy - 2 * vx
-    az = Uz
-    return [vx, vy, vz, ax, ay, az]
+    return [vx, vy, vz, Ux + 2 * vy, Uy - 2 * vx, Uz]
 
+# === Event Function for Poincare Section (y = 0) ===
+def y_cross_event(t, f):
+    return f[1]  # trigger at y = 0
+y_cross_event.direction = 1
+y_cross_event.terminal = False
+
+
+# === Poincaré Generator ===
 def generate_poincare(x0):
     C = params['C']
     mu = params['mu']
     mu_star = 1 - mu
+    y0 = 0.0  # Full system
+    z0 = 0.0
 
-    y0 = np.sqrt(3) / 2
-    #y0 = 0
+    # Check for valid velocity
     R1 = np.sqrt((x0 + mu)**2 + y0**2)
     R2 = np.sqrt((x0 - mu_star)**2 + y0**2)
-    arg = -C + x0**2 + y0**2 + 2.0 * (mu_star / R1 + mu / R2)
+    arg = -C + x0**2 + y0**2 + 2 * (mu_star / R1 + mu / R2)
     if arg < 0:
-        return f"Skipping x0 = {x0:.3f} (no real vy)"
+        return f"Skipping x0 = {x0} (imaginary vy0)"
 
     vy0 = np.sqrt(arg)
-    x = np.zeros(6)
-    x[0] = x0
-    x[1] = y0
-    x[4] = vy0
+    initial_state = [x0, y0, z0, 0.0, vy0, 0.0]
 
-    def y_cross_event(t, f):
-        return f[1] - np.sqrt(3)/2  # trigger when y ≈ √3/2
-    y_cross_event.direction = 1
-    y_cross_event.terminal = False
+    # Select dynamics
+    if params['J2_enabled']:
+        rhs = lambda t, f: equations_oblate(t, f, mu, params['J2'], params['R_nd'])
+    else:
+        rhs = lambda t, f: equations_cr3bp(t, f, mu)
 
+    # Integrate
     sol = solve_ivp(
-        lambda t, f: equations_oblate(t, f, mu, params['J2'], params['R_nd']),
+        rhs,
         [0, params['tlim']],
-        x,
+        initial_state,
         t_eval=np.arange(0, params['tlim'], params['dt']),
         events=[y_cross_event],
-        rtol=1e-7,
-        atol=1e-10,
+        method=params['integrator'],
+        rtol=1e-10,
+        atol=1e-12,
         max_step=1.0
     )
 
+    # Extract crossings
     poincare_points = []
     times = []
     state = sol.y
@@ -97,50 +110,44 @@ def generate_poincare(x0):
         if state[1, i-1] * state[1, i] < 0 and state[1, i] > 0:
             xm = 0.5 * (state[:, i] + state[:, i-1])
             tm = 0.5 * (sol.t[i] + sol.t[i-1])
-            
-            # Safeguard against runaway orbits
-            if abs(xm[0]) > 3 or abs(xm[3]) > 2:
-                continue  # Skip this crossing if x or vx is too extreme
-            
+            #if abs(xm[0]) > 3 or abs(xm[3]) > 2:
+                #continue
             poincare_points.append(xm)
             times.append(tm)
 
-
     if not poincare_points:
-        return f"x0 = {x0:.3f}, crossings = 0"
+        return f"x0 = {x0}, crossings = 0"
 
     data = np.array(poincare_points)
     times = np.array(times)
-    dat_path = os.path.join(params['folder'], f"PY-C{C:.3f}Xi{x0:.3f}.dat")
-    np.savetxt(dat_path, data)
+
+    fname = f"PY-C{C}_Xi{x0}.dat"
+    np.savetxt(os.path.join(params['folder'], fname), data)
 
     if params['plot']:
         cmap = cm.get_cmap("viridis")
         norm = Normalize(vmin=0, vmax=params['tlim'])
         colors = cmap(norm(times))
-
         plt.figure(figsize=(8, 6))
         plt.scatter(data[:, 0], data[:, 3], c=colors, s=1)
-        plt.xlabel(r'$x$', fontsize=14)
-        plt.ylabel(r'$\dot{x}$', fontsize=14)
-        plt.title(f"Poincar\'e Section\nC={C:.3f}, x0={x0:.3f}")
+        plt.xlabel(r'$x$')
+        plt.ylabel(r'$\dot{x}$')
+        plt.title(f"Poincaré Section\nC = {C}, x0 = {x0}")
         plt.colorbar(label='Time')
         plt.grid(True)
         plt.tight_layout()
-        plot_path = os.path.join(params['folder'], f"Poincare_C{C:.3f}_x0{x0:.3f}.png")
-        plt.savefig(plot_path, dpi=300)
+        plt.savefig(os.path.join(params['folder'], f"Poincare_C{C}_x0{x0}.png"), dpi=300)
         plt.close()
 
-    return f"x0 = {x0:.3f}, crossings = {len(data)}"
+    return f"x0 = {x0}, crossings = {len(data)}"
 
-# === Parallel Execution ===
+# === Batch Runner ===
 if __name__ == "__main__":
     print(f"[Info] R_nd: {R_nd:.6f}, mu: {mu:.8f}")
-    print("Init:", datetime.now())
+    print("Start:", datetime.now())
     start = timeit.default_timer()
 
-    x0_values = np.round(np.arange(0.490, 0.515, 0.001), 3)
-
+    x0_values = np.arange(-1.0, 1.0, 0.1)
 
     with mp.Pool(mp.cpu_count()) as pool:
         results = pool.map(generate_poincare, x0_values)
@@ -148,33 +155,33 @@ if __name__ == "__main__":
     for res in results:
         print(res)
 
-    if params.get('combined_plot', False):
-        cmap_combined = plt.get_cmap("plasma")
-        norm_combined = Normalize(vmin=min(x0_values), vmax=max(x0_values))
+    # Combined plot
+    if params['combined_plot']:
+        cmap = cm.get_cmap("plasma")
+        norm = Normalize(vmin=min(x0_values), vmax=max(x0_values))
         plt.figure(figsize=(8, 6))
         for x0 in x0_values:
-            dat_path = os.path.join(params['folder'], f"PY-C{params['C']:.3f}Xi{x0:.3f}.dat")
-            if os.path.exists(dat_path):
-                data = np.loadtxt(dat_path)
+            path = os.path.join(params['folder'], f"PY-C{params['C']}_Xi{x0}.dat")
+            if os.path.exists(path):
+                data = np.loadtxt(path)
                 if data.ndim == 1:
                     data = data[np.newaxis, :]
-                color = cmap_combined(norm_combined(x0))
-                plt.scatter(data[:, 0], data[:, 3], color=color, s=1, alpha=0.6)
-        plt.xlabel(r'$x$', fontsize=14)
-        plt.ylabel(r'$\dot{x}$', fontsize=14)
-        plt.title(f"Combined Poincar\'e Section (C = {params['C']:.2f})")
-        sm = plt.cm.ScalarMappable(cmap=cmap_combined, norm=norm_combined)
+                plt.scatter(data[:, 0], data[:, 3], color=cmap(norm(x0)), s=1, alpha=0.6)
+        plt.xlabel(r'$x$')
+        plt.ylabel(r'$\dot{x}$')
+        plt.title(f"Combined Poincaré Section (C = {params['C']})")
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
-        ax = plt.gca()
-        plt.colorbar(sm, ax=ax, label=r'$x_0$')
+        plt.colorbar(sm, label=r'$x_0$')
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(os.path.join(params['folder'], f"Combined_Poincare_C{params['C']:.2f}.png"), dpi=300)
+        plt.savefig(os.path.join(params['folder'], f"Combined_Poincare_C{params['C']}.png"), dpi=300)
         plt.close()
 
     stop = timeit.default_timer()
-    print("\nEnd:", datetime.now())
+    print("End:", datetime.now())
     print(f"Total runtime: {stop - start:.2f} seconds")
+
 
 
 

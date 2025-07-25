@@ -6,10 +6,12 @@ __pycache__/
 *.pyc
 
 # Ignore large output or data folders ONLY
-CR3BP_Poincare/20231110P02/
+CR3BP_Poincare/
 source/CR3BP_Poincare_J2/poincare_output/
 source/neptune_triton_models/old/
 poincare_maps/
+lit_review/
+20231110P02/
 
 
 # Ignore virtual environment if present

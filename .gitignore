@@ -1,24 +1,21 @@
-cat <<EOF > .gitignore
-# === Ignore Large Data and Output ===
-*.dat
-CR3BP_Poincare/20231110P02/
-source/**/poincare_output/
-source/**/old/
+# Ignore system files
+.DS_Store
 
-# === Ignore Build/Cache/Editor Files ===
+# Ignore Python cache files
 __pycache__/
 *.pyc
-.DS_Store
-.vscode/
 
-# === Ignore LaTeX / Thesis Work ===
-lit_review/
-poincare_maps/
-*.aux
-*.log
-*.out
-*.pdf
-*.fdb_latexmk
-*.fls
-*.synctex.gz
-EOF
+# Ignore large output or data folders ONLY
+CR3BP_Poincare/20231110P02/
+source/CR3BP_Poincare_J2/poincare_output/
+source/neptune_triton_models/old/
+
+# Ignore virtual environment if present
+venv/
+
+# Optional: ignore test files you never want pushed
+source/neptune_triton_models/r3bp_with_perturbations/test_file.py
+
+# Ignore all .dat files globally
+*.dat
+

@@ -9,6 +9,8 @@ __pycache__/
 CR3BP_Poincare/20231110P02/
 source/CR3BP_Poincare_J2/poincare_output/
 source/neptune_triton_models/old/
+poincare_maps/
+
 
 # Ignore virtual environment if present
 venv/

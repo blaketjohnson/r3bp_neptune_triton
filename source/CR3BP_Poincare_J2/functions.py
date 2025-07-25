@@ -1,61 +1,104 @@
+"""
+functions.py
+
+Core physics, event logic, and utility functions for CR3BP and J2-perturbed models in the Neptune-Triton system.
+All dynamics are defined in dimensionless form; this file includes a nondimensionalizer based on `a_triton_meters`.
+
+Author: Blake T. Johnson (modularized)
+"""
+
 import numpy as np
-# Function to convert from the inertial system to the rotating sytem
-def fix2rot(xf, t, omega):
-  # t is the time in seconds, omega is the angular velocity in rad/s
-  t = t * omega  # Convert time to angular displacement
+from constants import *
 
-  ct = np.cos(t)
-  st = np.sin(t)
+# === Non-dimensionalization ===
+def dimensional_to_nondimensional(x_km):
+    return x_km * 1000 / a_triton_meters  # converts km to ND
 
-  xr = np.zeros(6)
+def time_to_nondimensional(t_sec):
+    return t_sec / T_triton_seconds
 
-  xr[0] = xf[0]*ct + xf[1]*st
-  xr[1] = xf[1]*ct - xf[0]*st
-  xr[2] = xf[2]
+def velocity_to_nondimensional(v_mps):
+    return v_mps / (a_triton_meters / T_triton_seconds)
 
-  xr[3] = xf[3]*ct + xf[1]*ct - xf[0]*st + xf[4]*st
-  xr[4] =-xf[0]*ct + xf[4]*ct - xf[3]*st - xf[1]*st
-  xr[5] = xf[5]
+# === System Parameters (derived from constants) ===
+mu = M_triton / (M_neptune + M_triton)
+R_nd = R_neptune_meters / a_triton_meters
 
-  return xr
+# === Gradient of Potential: Unperturbed CR3BP ===
+def gradient_U(x, y, z, mu):
+    r1 = np.sqrt((x + mu)**2 + y**2 + z**2)
+    r2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
+    
+    Omega_x = x - (1 - mu)*(x + mu)/r1**3 - mu*(x - (1 - mu))/r2**3
+    Omega_y = y - (1 - mu)*y/r1**3 - mu*y/r2**3
+    Omega_z = -(1 - mu)*z/r1**3 - mu*z/r2**3
 
-# Function to convert from the rotating system to the inertial system
-def rot2fix(xr, t, omega):
-  # t is the time in seconds, omega is the angular velocity in rad/s
-  t = t * omega  # Convert time to angular displacement
+    return Omega_x, Omega_y, Omega_z
 
-  ct = np.cos(t)
-  st = np.sin(t)
+# === Gradient of Potential: Oblateness-perturbed CR3BP ===
+def gradient_U_oblate(x, y, z, mu, J2, R):
+    r1 = np.sqrt((x + mu)**2 + y**2 + z**2)
+    r2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
+    A = (3 * J2 * R**2) / 2
+    f = A * (1 - 5 * z**2 / r1**2) / r1**5
 
-  xf = np.zeros[6]
+    Omega_x = x - (1 - mu)*(x + mu)/r1**3 - mu*(x - (1 - mu))/r2**3 + f * (x + mu)
+    Omega_y = y - (1 - mu)*y/r1**3 - mu*y/r2**3 + f * y
+    Omega_z = -(1 - mu)*z/r1**3 - mu*z/r2**3 + A * z * (3 - 5 * z**2 / r1**2) / r1**5
 
-  xf[0] = xr[0]*ct - xr[1]*st
-  xf[1] = xr[1]*ct + xr[0]*st
-  xf[2] = xr[2]
-  xf[3] =-xr[0]*st - xr[4]*st + xr[3]*ct - xr[1]*ct
-  xf[4] = xr[3]*st - xr[1]*st + xr[0]*ct + xr[4]*ct
-  xf[5] = xr[5]
+    return Omega_x, Omega_y, Omega_z
 
-  return xf
+# === Equations of Motion ===
+def equations_cr3bp(t, state, mu):
+    x, y, z, vx, vy, vz = state
+    Ux, Uy, Uz = gradient_U(x, y, z, mu)
+    ax = Ux + 2 * vy
+    ay = Uy - 2 * vx
+    az = Uz
+    return [vx, vy, vz, ax, ay, az]
 
-# Function to calcualte a reasonable time unit give the time in seconds
-def time(t):
-  if t < 60.0:
-      return f"{t:.2f} seconds"
-  elif t >= 60.0 and t < 3600.0:
-      return f"{t/60.0:.2f} minutes"
-  else:
-      return f"{t/3600.0:.2f} hours"
-  
-# Function to print the final status of a give trajectory
-def print_status(cond, t):
-  if cond == 0:
-    print("No critical events.")
-  elif cond == 1:
-    print(f"Collision with M1 at {t} TU:")
-  elif cond == 2:
-    print(f"Collision with M2 at {t} TU:")
-  elif cond == 9:
-    print(f"Escape from the system at {t} TU:")
+def equations_oblate(t, state, mu, J2, R):
+    x, y, z, vx, vy, vz = state
+    Ux, Uy, Uz = gradient_U_oblate(x, y, z, mu, J2, R)
+    ax = Ux + 2 * vy
+    ay = Uy - 2 * vx
+    az = Uz
+    return [vx, vy, vz, ax, ay, az]
+
+# === Poincare Section at y = 0 ===
+def y_cross_event(t, f):
+    return f[1]  # y = 0
+
+y_cross_event.direction = 1
+
+y_cross_event.terminal = False
+
+# === Escape or Collision Event ===
+def escape_or_collision_event(t, f):
+    x, y, z = f[0], f[1], f[2]
+    R1 = np.sqrt((x + mu)**2 + y**2 + z**2)
+    R2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
+    R_total = np.sqrt(x**2 + y**2 + z**2)
+
+    r1_min = R_neptune_meters / a_triton_meters  # ND
+    r2_min = R_trition_meters / a_triton_meters  # ND
+    r_max = 5.0  # ND, arbitrary escape limit
+
+    if R1 <= r1_min:
+        return -1  # Collision with Neptune
+    if R2 <= r2_min:
+        return -2  # Collision with Triton
+    if R_total >= r_max:
+        return 1   # Escape
+
+    return 10  # No event
+
+escape_or_collision_event.terminal = True
+escape_or_collision_event.direction = 0
+
+# === Optional: Utility Function for Displaying Info ===
+def print_status(x0, C, reason, t):
+    print(f"[!] Excluded orbit at x0 = {x0:.4f}, C = {C:.5f}, reason = {reason}, t = {t:.2f}")
+
 
 

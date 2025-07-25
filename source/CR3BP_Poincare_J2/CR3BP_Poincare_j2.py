@@ -58,51 +58,76 @@ def equations_oblate(t, state, mu, J2, R):
     Ux, Uy, Uz = gradient_U_oblate(x, y, z, mu, J2, R)
     return [vx, vy, vz, Ux + 2 * vy, Uy - 2 * vx, Uz]
 
-# === Event Function for Poincare Section (y = 0) ===
+# === Events ===
 def y_cross_event(t, f):
-    return f[1]  # trigger at y = 0
+    return f[1]
 y_cross_event.direction = 1
 y_cross_event.terminal = False
 
+def escape_or_collision_event(t, f):
+    x, y, z = f[0], f[1], f[2]
+    R1 = np.sqrt((x + mu)**2 + y**2 + z**2)
+    R2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
+    R = np.sqrt(x**2 + y**2 + z**2)
+
+    r1_min = 3000 / a_triton_meters
+    r2_min = 1000 / a_triton_meters
+    r_max = 5.0
+
+    if R1 <= r1_min:
+        return -1  # M1 collision
+    if R2 <= r2_min:
+        return -2  # M2 collision
+    if R >= r_max:
+        return 1   # Escape
+    return 10  # No event
+
+escape_or_collision_event.terminal = True
+escape_or_collision_event.direction = 0
 
 # === Poincaré Generator ===
 def generate_poincare(x0):
     C = params['C']
     mu = params['mu']
     mu_star = 1 - mu
-    y0 = 0.0  # Full system
+    y0 = 0.0
     z0 = 0.0
 
-    # Check for valid velocity
-    R1 = np.sqrt((x0 + mu)**2 + y0**2)
-    R2 = np.sqrt((x0 - mu_star)**2 + y0**2)
-    arg = -C + x0**2 + y0**2 + 2 * (mu_star / R1 + mu / R2)
+    R1 = np.sqrt((x0 + mu)**2)
+    R2 = np.sqrt((x0 - mu_star)**2)
+    arg = -C + x0**2 + 2 * (mu_star / R1 + mu / R2)
     if arg < 0:
         return f"Skipping x0 = {x0} (imaginary vy0)"
 
     vy0 = np.sqrt(arg)
     initial_state = [x0, y0, z0, 0.0, vy0, 0.0]
 
-    # Select dynamics
     if params['J2_enabled']:
         rhs = lambda t, f: equations_oblate(t, f, mu, params['J2'], params['R_nd'])
     else:
         rhs = lambda t, f: equations_cr3bp(t, f, mu)
 
-    # Integrate
     sol = solve_ivp(
         rhs,
         [0, params['tlim']],
         initial_state,
         t_eval=np.arange(0, params['tlim'], params['dt']),
-        events=[y_cross_event],
+        events=[y_cross_event, escape_or_collision_event],
         method=params['integrator'],
         rtol=1e-10,
         atol=1e-12,
         max_step=1.0
     )
 
-    # Extract crossings
+    if sol.status == 1 and len(sol.t_events[1]) > 0:
+        t_event = sol.t_events[1][0]
+        f_event = sol.y_events[1][0]
+        reason = escape_or_collision_event(t_event, f_event)
+        reason_str = { -1: "Collision with M1", -2: "Collision with M2", 1: "Escape" }.get(reason, "Unknown")
+        with open(os.path.join(params['folder'], "collisions_and_escapes.log"), "a") as f:
+            f.write(f"x0 = {x0}, C = {C}, reason: {reason_str}, t = {t_event:.3f}\n")
+        return f"x0 = {x0} -> Excluded: {reason_str}"
+
     poincare_points = []
     times = []
     state = sol.y
@@ -110,8 +135,6 @@ def generate_poincare(x0):
         if state[1, i-1] * state[1, i] < 0 and state[1, i] > 0:
             xm = 0.5 * (state[:, i] + state[:, i-1])
             tm = 0.5 * (sol.t[i] + sol.t[i-1])
-            #if abs(xm[0]) > 3 or abs(xm[3]) > 2:
-                #continue
             poincare_points.append(xm)
             times.append(tm)
 
@@ -132,7 +155,7 @@ def generate_poincare(x0):
         plt.scatter(data[:, 0], data[:, 3], c=colors, s=1)
         plt.xlabel(r'$x$')
         plt.ylabel(r'$\dot{x}$')
-        plt.title(f"Poincaré Section\nC = {C}, x0 = {x0}")
+        plt.title(f"Poincar\u00e9 Section\nC = {C}, x0 = {x0}")
         plt.colorbar(label='Time')
         plt.grid(True)
         plt.tight_layout()
@@ -155,7 +178,6 @@ if __name__ == "__main__":
     for res in results:
         print(res)
 
-    # Combined plot
     if params['combined_plot']:
         cmap = cm.get_cmap("plasma")
         norm = Normalize(vmin=min(x0_values), vmax=max(x0_values))
@@ -169,7 +191,7 @@ if __name__ == "__main__":
                 plt.scatter(data[:, 0], data[:, 3], color=cmap(norm(x0)), s=1, alpha=0.6)
         plt.xlabel(r'$x$')
         plt.ylabel(r'$\dot{x}$')
-        plt.title(f"Combined Poincaré Section (C = {params['C']})")
+        plt.title(f"Combined Poincar\u00e9 Section (C = {params['C']})")
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
         plt.colorbar(sm, label=r'$x_0$')
@@ -181,6 +203,7 @@ if __name__ == "__main__":
     stop = timeit.default_timer()
     print("End:", datetime.now())
     print(f"Total runtime: {stop - start:.2f} seconds")
+
 
 
 

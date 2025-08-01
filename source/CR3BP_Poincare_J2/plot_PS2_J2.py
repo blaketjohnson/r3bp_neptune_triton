@@ -16,9 +16,9 @@ from matplotlib.colors import Normalize
 import matplotlib.cm as cm
 
 # === Plot Target Parameters ===
-CJ = 2.990                  # Jacobi constant to plot
-XI = 0.200                  # Starting x0 (ND)
-XF = 0.215                  # Ending x0 (ND)
+CJ = 3.02                  # Jacobi constant to plot
+XI = 0.205                  # Starting x0 (ND)
+XF = 0.205                  # Ending x0 (ND)
 DX = 0.001                  # Step size for x0 (ND)
 
 # === Paths and Style ===

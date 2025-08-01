@@ -10,13 +10,13 @@ Summer Thesis Project, Phase 1
 """
 
 # === Jacobi Constant Sweep ===
-C0 = 2.980       # Initial Jacobi constant
-CF = 3.100       # Final Jacobi constant
+C0 = 3.02       # Initial Jacobi constant
+CF = 3.02       # Final Jacobi constant
 dC = 0.001       # Jacobi constant increment
 
 # === x0 Sweep Range (Non-Dimensional) ===
-XI = -1.000       # Initial x0 (non-dimensional)
-XF = 1.000       # Final x0 (non-dimensional)
+XI = 0.205       # Initial x0 (non-dimensional)
+XF = 0.205       # Final x0 (non-dimensional)
 DX = 0.005       # Step size for x0 (non-dimensional)
 
 # === Time Parameters (Dimensional) ===

@@ -10,18 +10,21 @@ Summer Thesis Project, Phase 1
 """
 
 # === Jacobi Constant Sweep ===
-C0 = 3.02       # Initial Jacobi constant
-CF = 3.02       # Final Jacobi constant
-dC = 0.001       # Jacobi constant increment
+C0 = 3.148       # Initial Jacobi constant
+CF = 3.148      # Final Jacobi constant
+dC = 0.005       # Jacobi constant increment
 
 # === x0 Sweep Range (Non-Dimensional) ===
-XI = 0.205       # Initial x0 (non-dimensional)
-XF = 0.205       # Final x0 (non-dimensional)
-DX = 0.005       # Step size for x0 (non-dimensional)
+XI = -0.2       # Initial x0 (non-dimensional)
+XF = 1.2       # Final x0 (non-dimensional)
+DX = 0.100       # Step size for x0 (non-dimensional)
+
+# === Initial y0 Value (Non-Dimensional) ===
+YI = 0.0         # Default: 0.0 (can set to sqrt(3)/2 for L4/L5
 
 # === Time Parameters (Dimensional) ===
-tlim_sec = 10000.0   # Integration time limit in seconds
-dt_sec = 0.001      # Integration timestep in seconds
+tlim_sec = 20000.0   # Integration time limit in seconds
+dt_sec = 10.000      # Integration timestep in seconds
 
 # === Simulation Flags ===
 J2_enabled = False  # If True, include J2 perturbation in the equations of motion

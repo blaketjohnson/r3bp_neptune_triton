@@ -92,10 +92,11 @@ log_file = open(log_path, "w")
 
 def generate_poincare(args):
     C, x0 = args
-    y0, z0 = 0.0, 0.0
-    R1 = np.sqrt((x0 + mu)**2)
-    R2 = np.sqrt((x0 - (1 - mu))**2)
-    arg = -C + x0**2 + 2 * ((1 - mu) / R1 + mu / R2)
+    y0, z0 = YI, 0.0
+    R1 = np.sqrt((x0 + mu)**2 + y0**2)
+    R2 = np.sqrt((x0 - (1 - mu))**2 + y0**2)
+    arg = -C + x0**2 + y0**2 + 2 * ((1 - mu) / R1 + mu / R2)
+
     if arg < 0:
         return f"Skipping x0 = {x0:.5f} (imaginary vy0)"
     vy0 = np.sqrt(arg)
@@ -143,6 +144,7 @@ if __name__ == "__main__":
     start = timeit.default_timer()
 
     x0_values = np.arange(XI, XF + DX/2, DX)
+    print(f"Initial y0 = {YI}")
     Cs = np.arange(C0, CF + dC/2, dC)
     input_pairs = [(C, x0) for C in Cs for x0 in x0_values]
 

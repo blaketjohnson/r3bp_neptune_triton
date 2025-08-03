@@ -17,11 +17,6 @@ import os
 from constants import *
 from parameters import *
 
-# === Convert professor-style ND time input to seconds ===
-tlim_sec = tlim_sec * T_triton_seconds
-dt_sec = dt_sec * T_triton_seconds
-
-
 # === Derived Parameters ===
 mu = M_triton / (M_neptune + M_triton)
 R_nd = R_neptune_meters / a_triton_meters
@@ -39,12 +34,12 @@ def neptune_hill_radius(M_neptune, M_sun, a_neptune_au, AU_km, a_triton_km):
 # Compute once at import so workers also have it
 R_H_km, R_H_ND = neptune_hill_radius(
     M_neptune=M_neptune,
-    M_sun=1.9885e30,          # kg
-    a_neptune_au=30.06896348, # AU
-    AU_km=1.495978707e8,      # km
+    M_sun=1.9885e30,
+    a_neptune_au=30.06896348,
+    AU_km=1.495978707e8,
     a_triton_km=a_triton_km
 )
-r_max = R_H_ND  # global ND escape limit
+r_max = R_H_ND  # ND escape limit
 
 # === Gradient of Potential Functions ===
 def gradient_U(x, y, z):
@@ -75,19 +70,17 @@ def equations(t, state):
     return [vx, vy, vz, Ux + 2 * vy, Uy - 2 * vx, Uz]
 
 # === Event Triggers ===
+last_event_code = None
+
 def y_cross_event(t, f):
     return f[1]
 y_cross_event.direction = 1
 y_cross_event.terminal = False
 
-# Global variable to store event reason code
-last_event_code = None
-
 def escape_or_collision_event(t, f):
     global last_event_code
     last_event_code = None
-
-    status = 1.0  # keep going
+    status = 1.0
 
     x, y, z = f[0], f[1], f[2]
     R1 = np.sqrt((x + mu)**2 + y**2 + z**2)
@@ -96,15 +89,18 @@ def escape_or_collision_event(t, f):
 
     if R1 <= r1_min:
         last_event_code = -1
+        status = 0.0
     elif R2 <= r2_min:
         last_event_code = -2
+        status = 0.0
     elif R_total >= r_max:
         last_event_code = 1
+        status = 0.0
 
-    return status  # never returns 0, so never instantly stops
+    return status
 
-escape_or_collision_event.terminal = False
-escape_or_collision_event.direction = -1  # detect decreasing to zero
+escape_or_collision_event.terminal = True
+escape_or_collision_event.direction = -1
 
 # === Output Setup ===
 data_folder = "Poincare_data"
@@ -116,17 +112,15 @@ log_file = open(log_path, "w")
 def generate_poincare(args):
     C, x0 = args
     y0, z0 = YI, 0.0
+    print(f"[Working] C = {C:.5f}, x0 = {x0:.5f}")
 
-    # === Initial ND distances ===
     R1_0 = np.sqrt((x0 + mu)**2 + y0**2 + z0**2)
     R2_0 = np.sqrt((x0 - (1 - mu))**2 + y0**2 + z0**2)
     Rtot_0 = np.sqrt(x0**2 + y0**2 + z0**2)
 
-    # Initial skip: collision or escape
     if R1_0 <= r1_min or R2_0 <= r2_min or Rtot_0 >= r_max:
         return f"Skipping x0 = {x0:.5f} (initial collision/escape)"
 
-    # Jacobi constant velocity check
     arg = -C + x0**2 + y0**2 + 2 * ((1 - mu) / R1_0 + mu / R2_0)
     if arg < 0:
         return f"Skipping x0 = {x0:.5f} (imaginary vy0)"
@@ -134,50 +128,40 @@ def generate_poincare(args):
     vy0 = np.sqrt(arg)
     initial_state = [x0, y0, z0, 0.0, vy0, 0.0]
 
-    # Integrate — escape/collision event is non-terminal for this relaxed mode
+    # === Solve in ND time ===
     sol = solve_ivp(
-        equations,
-        [0, tlim_sec],
-        initial_state,
-        t_eval=np.arange(0, tlim_sec, dt_sec),
-        events=[y_cross_event, escape_or_collision_event],
-        method='DOP853',
-        first_step=dt_sec / 100.0,
-        rtol=1e-10,
-        atol=1e-12
-    )
+    equations,
+    [0, tlim_sec],  # ND time span
+    initial_state,
+    events=[y_cross_event, escape_or_collision_event],
+    method='DOP853',
+    max_step=dt_sec,          # limit the largest step size
+    first_step=dt_sec / 100.0,
+    rtol=1e-12,
+    atol=1e-12
+)
 
-    # Detect Poincaré crossings
+
+    if sol.status == 1 and len(sol.t_events[1]) > 0:
+        reason = {-1: "Neptune Collision", -2: "Triton Collision", 1: "Escape"}.get(last_event_code, "Other")
+        return f"x0 = {x0:.5f}, C = {C:.5f} -> Excluded ({reason})"
+
     crossings, times = [], []
-    for i in range(1, sol.y.shape[1]):
-        if sol.y[1, i-1] * sol.y[1, i] < 0 and sol.y[1, i] > 0:
-            xm = 0.5 * (sol.y[:, i] + sol.y[:, i-1])
-            tm = 0.5 * (sol.t[i] + sol.t[i-1])
-            if np.any(np.abs(xm[3:6]) > 10.0):  # velocity sanity filter
-                continue
-            crossings.append(xm)
-            times.append(tm)
+    # Use solver’s built-in event detection results
+    if sol.t_events[0].size > 0:
+        for k in range(sol.t_events[0].size):
+            ye = sol.y_events[0][k]
+            crossings.append(ye)
+            times.append(sol.t_events[0][k])
 
     if not crossings:
-        # Even if flagged, no crossings to save
-        if last_event_code is not None:
-            reason = {-1: "Neptune Collision", -2: "Triton Collision", 1: "Escape"}.get(last_event_code, "Other")
-            return f"x0 = {x0:.5f}, C = {C:.5f} -> Excluded ({reason})"
-        else:
-            return f"x0 = {x0:.5f}, C = {C:.5f}, crossings = 0"
+        return f"x0 = {x0:.5f}, C = {C:.5f}, crossings = 0"
 
-    # Save data
     data = np.column_stack((np.array(crossings), np.array(times)))
     fname = f"PY-C{C:.5f}_Xi{x0:.5f}.dat"
     np.savetxt(os.path.join(data_folder, fname), data)
 
-    # Only exclude after saving if it was flagged
-    if last_event_code is not None:
-        reason = {-1: "Neptune Collision", -2: "Triton Collision", 1: "Escape"}.get(last_event_code, "Other")
-        return f"x0 = {x0:.5f}, C = {C:.5f} -> Excluded ({reason})"
-
     return f"x0 = {x0:.5f}, C = {C:.5f}, crossings = {len(data)}"
-
 
 # === Main Execution ===
 if __name__ == "__main__":
@@ -214,6 +198,8 @@ if __name__ == "__main__":
     print(f"Runtime = {runtime_str}")
     log_file.write(f"Runtime = {runtime_str}\n")
     log_file.close()
+
+
 
 
 

@@ -1,8 +1,10 @@
 """
-plot_single_Poincare_J2_filtered.py
+plot_single_Poincare_J2_matched.py
 
-Same as your Poincaré plotting script but skips points with absurd ND velocities
-to prevent them from stretching the y-axis.
+Plots a single Poincaré section for a chosen Jacobi constant (CJ)
+and x0 sweep range, with style/formatting matched closely to professor's plots.
+
+Author: Blake T. Johnson
 """
 
 import os
@@ -12,28 +14,31 @@ from matplotlib.colors import Normalize
 import matplotlib.cm as cm
 
 # === Plot Target Parameters ===
-CJ = 3.0148
-XI = -0.2
-XF = 1.2
-DX = 0.1000
+CJ = 2.9000       # Jacobi constant to plot
+XI = -0.2         # Start x0 (ND)
+XF = 1.2          # End x0 (ND)
+DX = 0.005        # Step size for x0 (ND)
 
-# === Paths and Style ===
+# === Paths ===
 data_folder = "Poincare_data"
 plot_folder = "Plot_Results"
 os.makedirs(plot_folder, exist_ok=True)
 
+# === Style ===
 plt.rcParams['font.family'] = 'Times New Roman'
 plt.rcParams['mathtext.fontset'] = 'cm'
 plt.rcParams['figure.autolayout'] = True
 
-# === Prepare figure and colormap ===
-x0_values = np.arange(XI, XF + DX/2, DX)
+# === Prepare figure ===
 fig, ax = plt.subplots(figsize=(8, 6))
-cmap = cm.get_cmap("viridis")
+cmap = cm.get_cmap("plasma")  # or "viridis" if you want cooler tones
+norm = Normalize(vmin=XI, vmax=XF)
 
+# === Sweep range ===
+x0_values = np.arange(XI, XF + DX/2, DX)
 colors_used = []
 
-# === Plot Loop with filtering ===
+# === Plot loop ===
 for x0 in x0_values:
     fname = f"PY-C{CJ:.5f}_Xi{x0:.5f}.dat"
     path = os.path.join(data_folder, fname)
@@ -41,46 +46,48 @@ for x0 in x0_values:
         continue
 
     data = np.loadtxt(path)
-    if data.ndim == 1:
+    if data.ndim == 1:  # Ensure 2D array
         data = data[np.newaxis, :]
 
-    # Debug print of ND velocity range
-    print(f"x0 = {x0:.3f} -> vx min/max = {data[:,3].min():.4f} / {data[:,3].max():.4f}")
-
-    # === Velocity filter: remove bad points ===
-    mask = np.abs(data[:, 3]) < 10.0  # ND velocities should be small (~<2)
+    # Filter absurd velocities (ND sanity check)
+    mask = np.abs(data[:, 3]) < 10.0
     data = data[mask]
     if data.size == 0:
         continue
 
     colors_used.append(x0)
     ax.scatter(data[:, 0], data[:, 3],
-               s=3, alpha=0.8,
-               color=cmap((x0 - XI) / (XF - XI)))
+           s=0.2, alpha=0.5, color=cmap(norm(x0)))  # visibility tuned for dense regions
 
 # === Colorbar ===
 if colors_used:
-    norm = Normalize(vmin=min(colors_used), vmax=max(colors_used))
     sm = cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    plt.colorbar(sm, ax=ax, label=r'$x_0$ (ND)')
+    cbar = plt.colorbar(sm, ax=ax, label=r'$x_0$ (ND)')
+    cbar.ax.tick_params(labelsize=12)
 
-# === Labels and formatting ===
+# === Labels & Title ===
 ax.set_xlabel(r'$x$ (ND)', fontsize=14)
 ax.set_ylabel(r'$\dot{x}$ (ND)', fontsize=14)
 ax.set_title(f"Poincaré Section at C = {CJ:.5f}", fontsize=16)
-ax.grid(True)
+ax.set_xlim(-2, 2)
+ax.set_ylim(-2, 2)
+
+
+# Match professor’s clean axis look
 ax.ticklabel_format(style='plain', axis='x')
 ax.ticklabel_format(style='plain', axis='y')
+ax.grid(True, alpha=0.3)
 
-# === Save and show ===
-out_name = f"Poincare_C{CJ:.5f}_filtered.png"
+# === Save & Show ===
+out_name = f"Poincare_C{CJ:.5f}.png"
 save_path = os.path.join(plot_folder, out_name)
 plt.savefig(save_path, dpi=300)
-print(f"\n✅ Poincaré section saved to: {save_path}")
+print(f"✅ Plot saved to: {save_path}")
 
 plt.show()
 plt.close()
+
 
 
 

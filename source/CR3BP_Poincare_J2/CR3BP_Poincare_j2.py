@@ -17,6 +17,11 @@ import os
 from constants import *
 from parameters import *
 
+# === Convert professor-style ND time input to seconds ===
+tlim_sec = tlim_sec * T_triton_seconds
+dt_sec = dt_sec * T_triton_seconds
+
+
 # === Derived Parameters ===
 mu = M_triton / (M_neptune + M_triton)
 R_nd = R_neptune_meters / a_triton_meters
@@ -75,32 +80,31 @@ def y_cross_event(t, f):
 y_cross_event.direction = 1
 y_cross_event.terminal = False
 
+# Global variable to store event reason code
+last_event_code = None
+
 def escape_or_collision_event(t, f):
-    # Default: continue integration
-    status = 1.0  # positive means keep going
+    global last_event_code
+    last_event_code = None
+
+    status = 1.0  # keep going
 
     x, y, z = f[0], f[1], f[2]
     R1 = np.sqrt((x + mu)**2 + y**2 + z**2)
     R2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
     R_total = np.sqrt(x**2 + y**2 + z**2)
 
-    # Collision with Neptune
     if R1 <= r1_min:
-        status = 0.0
-
-    # Collision with Triton
+        last_event_code = -1
     elif R2 <= r2_min:
-        status = 0.0
-
-    # Escape
+        last_event_code = -2
     elif R_total >= r_max:
-        status = 0.0
+        last_event_code = 1
 
-    return status  # 1 = continue, 0 = stop
+    return status  # never returns 0, so never instantly stops
 
-escape_or_collision_event.terminal = True
-escape_or_collision_event.direction = -1  # detect decreasing through zero
-
+escape_or_collision_event.terminal = False
+escape_or_collision_event.direction = -1  # detect decreasing to zero
 
 # === Output Setup ===
 data_folder = "Poincare_data"
@@ -108,31 +112,29 @@ os.makedirs(data_folder, exist_ok=True)
 log_path = os.path.join(data_folder, "run_log.txt")
 log_file = open(log_path, "w")
 
-# === Poincaré Map Generation (matches professor's skip logic) ===
+# === Poincaré Map Generation ===
 def generate_poincare(args):
     C, x0 = args
     y0, z0 = YI, 0.0
 
-    # === Initial ND distances to primaries and barycenter ===
+    # === Initial ND distances ===
     R1_0 = np.sqrt((x0 + mu)**2 + y0**2 + z0**2)
     R2_0 = np.sqrt((x0 - (1 - mu))**2 + y0**2 + z0**2)
     Rtot_0 = np.sqrt(x0**2 + y0**2 + z0**2)
 
-    # === Skip if initial position is already a collision or escape ===
+    # Initial skip: collision or escape
     if R1_0 <= r1_min or R2_0 <= r2_min or Rtot_0 >= r_max:
         return f"Skipping x0 = {x0:.5f} (initial collision/escape)"
 
-    # === Jacobi constant velocity check (imaginary vy0 case) ===
-    R1 = R1_0
-    R2 = R2_0
-    arg = -C + x0**2 + y0**2 + 2 * ((1 - mu) / R1 + mu / R2)
+    # Jacobi constant velocity check
+    arg = -C + x0**2 + y0**2 + 2 * ((1 - mu) / R1_0 + mu / R2_0)
     if arg < 0:
         return f"Skipping x0 = {x0:.5f} (imaginary vy0)"
 
     vy0 = np.sqrt(arg)
     initial_state = [x0, y0, z0, 0.0, vy0, 0.0]
 
-    # === Integrate ===
+    # Integrate — escape/collision event is non-terminal for this relaxed mode
     sol = solve_ivp(
         equations,
         [0, tlim_sec],
@@ -145,45 +147,40 @@ def generate_poincare(args):
         atol=1e-12
     )
 
-    # === Handle escape/collision events ===
-    if sol.status == 1 and len(sol.t_events[1]) > 0:
-        t_event = sol.t_events[1][0]
-        f_event = sol.y_events[1][0]
-        reason_code = escape_or_collision_event(t_event, f_event)
-        reason = {-1: "Neptune Collision", -2: "Triton Collision", 1: "Escape"}.get(reason_code, "Other")
-        with open(os.path.join(data_folder, "collisions_and_escapes.log"), "a") as f:
-            f.write(f"x0 = {x0:.5f}, C = {C}, Reason: {reason}, t = {t_event:.4f}\n")
-        return f"x0 = {x0:.5f}, C = {C:.5f} -> Excluded ({reason})"
-
-    # === Detect Poincaré crossings ===
+    # Detect Poincaré crossings
     crossings, times = [], []
     for i in range(1, sol.y.shape[1]):
-        # Detect y-crossing going upward
         if sol.y[1, i-1] * sol.y[1, i] < 0 and sol.y[1, i] > 0:
             xm = 0.5 * (sol.y[:, i] + sol.y[:, i-1])
             tm = 0.5 * (sol.t[i] + sol.t[i-1])
-
-            # === Velocity sanity filter (ND) ===
-            if np.any(np.abs(xm[3:6]) > 10.0):
+            if np.any(np.abs(xm[3:6]) > 10.0):  # velocity sanity filter
                 continue
-
             crossings.append(xm)
             times.append(tm)
 
-    # === Skip if no valid crossings remain ===
     if not crossings:
-        return f"x0 = {x0:.5f}, C = {C:.5f}, crossings = 0"
+        # Even if flagged, no crossings to save
+        if last_event_code is not None:
+            reason = {-1: "Neptune Collision", -2: "Triton Collision", 1: "Escape"}.get(last_event_code, "Other")
+            return f"x0 = {x0:.5f}, C = {C:.5f} -> Excluded ({reason})"
+        else:
+            return f"x0 = {x0:.5f}, C = {C:.5f}, crossings = 0"
 
-    # === Save ND positions and velocities ===
+    # Save data
     data = np.column_stack((np.array(crossings), np.array(times)))
     fname = f"PY-C{C:.5f}_Xi{x0:.5f}.dat"
     np.savetxt(os.path.join(data_folder, fname), data)
 
+    # Only exclude after saving if it was flagged
+    if last_event_code is not None:
+        reason = {-1: "Neptune Collision", -2: "Triton Collision", 1: "Escape"}.get(last_event_code, "Other")
+        return f"x0 = {x0:.5f}, C = {C:.5f} -> Excluded ({reason})"
+
     return f"x0 = {x0:.5f}, C = {C:.5f}, crossings = {len(data)}"
+
 
 # === Main Execution ===
 if __name__ == "__main__":
-    # Print info
     print(f"Neptune Hill radius: {R_H_km:.6f} km")
     print(f"Neptune Hill radius (ND): {R_H_ND:.6f}")
     print(f"[Info] mu = {mu:.8f}, R_nd = {R_nd:.6f}")
@@ -192,16 +189,13 @@ if __name__ == "__main__":
 
     start = timeit.default_timer()
 
-    # Prepare work list for multiprocessing
     x0_values = np.arange(XI, XF + DX/2, DX)
     Cs = np.arange(C0, CF + dC/2, dC)
     input_pairs = [(C, x0) for C in Cs for x0 in x0_values]
 
-    # Run in parallel
     with mp.Pool(mp.cpu_count()) as pool:
         results = pool.map(generate_poincare, input_pairs)
 
-    # Output results
     for res in results:
         print(res)
         log_file.write(res + "\n")
@@ -209,7 +203,6 @@ if __name__ == "__main__":
     stop = timeit.default_timer()
     runtime = stop - start
 
-    # Runtime formatting
     if runtime < 60:
         runtime_str = f"{runtime:.2f} seconds"
     elif runtime < 3600:
@@ -221,6 +214,7 @@ if __name__ == "__main__":
     print(f"Runtime = {runtime_str}")
     log_file.write(f"Runtime = {runtime_str}\n")
     log_file.close()
+
 
 
 

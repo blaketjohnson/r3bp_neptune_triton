@@ -15,7 +15,7 @@ import matplotlib.cm as cm
 CJ = 3.0148
 XI = -0.2
 XF = 1.2
-DX = 0.005
+DX = 0.1000
 
 # === Paths and Style ===
 data_folder = "Poincare_data"

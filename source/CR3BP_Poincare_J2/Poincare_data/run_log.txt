@@ -1,2 +1,16 @@
-x0 = 0.20500, C = 3.02000, crossings = 0
-Total runtime: 9.54 seconds
+x0 = -0.20000, C = 3.01480, crossings = 598
+x0 = -0.10000, C = 3.01480, crossings = 827
+x0 = 0.00000, C = 3.01480 -> Excluded (Neptune Collision)
+x0 = 0.10000, C = 3.01480, crossings = 802
+x0 = 0.20000, C = 3.01480, crossings = 860
+x0 = 0.30000, C = 3.01480, crossings = 441
+x0 = 0.40000, C = 3.01480, crossings = 725
+x0 = 0.50000, C = 3.01480, crossings = 657
+x0 = 0.60000, C = 3.01480, crossings = 407
+x0 = 0.70000, C = 3.01480, crossings = 644
+x0 = 0.80000, C = 3.01480, crossings = 802
+x0 = 0.90000, C = 3.01480, crossings = 740
+x0 = 1.00000, C = 3.01480 -> Excluded (Triton Collision)
+x0 = 1.10000, C = 3.01480, crossings = 612
+x0 = 1.20000, C = 3.01480, crossings = 1
+Runtime = 4.84 minutes

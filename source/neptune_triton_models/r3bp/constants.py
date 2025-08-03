@@ -14,6 +14,7 @@ c = 2.99792458e8  # Speed of light in m/s
 G = 6.672e-11  # Gravitational Constant in m^3 kg^-1 s^-2
 AU = 1.495978707e11  # Astronomical unit in meters
 day = 23.9345  # Hours (Appendix of Orbital Mechanics)
+M_sun = 1.989e30  # Mass of the Sun in kg
 
 # Neptune
 M_neptune = 1.0243e26  # Mass in kg

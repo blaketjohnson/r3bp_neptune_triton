@@ -10,8 +10,8 @@ Summer Thesis Project, Phase 1
 """
 
 # === Jacobi Constant Sweep ===
-C0 = 3.148       # Initial Jacobi constant
-CF = 3.148      # Final Jacobi constant
+C0 = 3.0148       # Initial Jacobi constant
+CF = 3.0148      # Final Jacobi constant
 dC = 0.005       # Jacobi constant increment
 
 # === x0 Sweep Range (Non-Dimensional) ===
@@ -30,5 +30,5 @@ dt_sec = 10.000      # Integration timestep in seconds
 J2_enabled = False  # If True, include J2 perturbation in the equations of motion
 plot = True # If True, generate plots of the Poincaré sections
 combined_plot = True # If True, generate combined plots of the Poincaré sections
-use_SOI_as_escape = False  # If True, use Neptune's SOI as escape radius instead of Hill radius
+
 

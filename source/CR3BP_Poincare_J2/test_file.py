@@ -1,114 +1,76 @@
+"""
+test.py
+
+Quick skip-logic test for CR3BP_Poincare_J2 to confirm initial
+collision/escape and imaginary vy0 conditions match professor's behavior.
+
+Author: Blake T. Johnson
+"""
+
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.integrate import solve_ivp
-import os
-from datetime import datetime
+from constants import *
+from parameters import *
 
-# === Earth-Moon System Constants (Dimensional) ===
-M_earth = 5.972e24  # kg
-M_moon = 7.342e22   # kg
-R_earth = 6378.1e3  # m
-R_moon = 1737.4e3   # m
-a_earth_moon = 384400e3  # m
-T_moon = 27.321661 * 24 * 3600  # s
+# === Derived parameters ===
+mu = M_triton / (M_neptune + M_triton)
 
-# === Derived Parameters (Non-Dimensionalized) ===
-mu = M_moon / (M_earth + M_moon)
-R1_nd = R_earth / a_earth_moon
-R2_nd = R_moon / a_earth_moon
+# ND distances for collision checks
+r1_min = R_neptune_meters / a_triton_meters
+r2_min = R_trition_meters / a_triton_meters
 
-# === Control Parameters ===
-C = 3.02
-XI = 0.18
-XF = 0.23
-DX = 0.001
-tlim_sec = 500000.0
-dt_sec = 0.01
+# Hill radius (km and ND)
+def neptune_hill_radius(M_neptune, M_sun, a_neptune_au, AU_km, a_triton_km):
+    a_neptune_km = a_neptune_au * AU_km
+    R_H_km = a_neptune_km * (M_neptune / (3 * M_sun)) ** (1/3)
+    R_H_ND = R_H_km / a_triton_km
+    return R_H_km, R_H_ND
 
-def time_to_nd(t_sec):
-    return t_sec / T_moon
+R_H_km, R_H_ND = neptune_hill_radius(
+    M_neptune=M_neptune,
+    M_sun=1.9885e30,          # kg
+    a_neptune_au=30.06896348, # AU
+    AU_km=1.495978707e8,      # km
+    a_triton_km=a_triton_km
+)
+r_max = R_H_ND
 
-def gradient_U(x, y, z):
-    r1 = np.sqrt((x + mu)**2 + y**2 + z**2)
-    r2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
-    Ox = x - (1 - mu)*(x + mu)/r1**3 - mu*(x - (1 - mu))/r2**3
-    Oy = y - (1 - mu)*y/r1**3 - mu*y/r2**3
-    Oz = -(1 - mu)*z/r1**3 - mu*z/r2**3
-    return Ox, Oy, Oz
+print(f"\n[Info] mu = {mu:.8f}")
+print(f"[Info] r1_min (ND) = {r1_min:.6f}")
+print(f"[Info] r2_min (ND) = {r2_min:.6f}")
+print(f"[Info] r_max  (ND) = {r_max:.6f}")
+print(f"[Info] Hill radius (km) = {R_H_km:.3f}")
 
-def equations(t, state):
-    x, y, z, vx, vy, vz = state
-    Ux, Uy, Uz = gradient_U(x, y, z)
-    return [vx, vy, vz, Ux + 2 * vy, Uy - 2 * vx, Uz]
+# === Sweep through x0 values ===
+x0_values = np.arange(XI, XF + DX/2, DX)
 
-def y_cross_event(t, f):
-    return f[1]
-y_cross_event.direction = 0
-y_cross_event.terminal = False
+print("\n=== Skip Logic Test ===")
+for x0 in x0_values:
+    y0, z0 = YI, 0.0
+    R1_0 = np.sqrt((x0 + mu)**2 + y0**2 + z0**2)
+    R2_0 = np.sqrt((x0 - (1 - mu))**2 + y0**2 + z0**2)
+    Rtot_0 = np.sqrt(x0**2 + y0**2 + z0**2)
 
-def generate_poincare(C, x0):
-    y0, z0 = 0.0, 0.0
-    R1 = np.sqrt((x0 + mu)**2)
-    R2 = np.sqrt((x0 - (1 - mu))**2)
-    arg = -C + x0**2 + 2 * ((1 - mu)/R1 + mu/R2)
-    if arg < 0:
-        print(f"[SKIP] x0 = {x0:.5f}, imaginary vy0")
-        return None
-    vy0 = np.sqrt(arg)
-    initial_state = [x0, y0, z0, 0.0, vy0, 0.0]
+    # Default status
+    status = "Integrate"
 
-    sol = solve_ivp(
-        equations,
-        [0, time_to_nd(tlim_sec)],
-        initial_state,
-        t_eval=np.arange(0, time_to_nd(tlim_sec), time_to_nd(dt_sec)),
-        events=[y_cross_event],
-        method='DOP853',
-        rtol=1e-10,
-        atol=1e-12
-    )
+    # Initial collision/escape checks
+    if R1_0 <= r1_min:
+        status = "Skip: Initial collision w/ Neptune"
+    elif R2_0 <= r2_min:
+        status = "Skip: Initial collision w/ Triton"
+    elif Rtot_0 >= r_max:
+        status = "Skip: Initial escape"
 
-    crossings = []
-    for i in range(1, sol.y.shape[1]):
-        if sol.y[1, i-1] * sol.y[1, i] < 0 and sol.y[1, i] > 0:
-            xm = 0.5 * (sol.y[:, i] + sol.y[:, i-1])
-            crossings.append(xm)
-
-    if not crossings:
-        print(f"[NO CROSSINGS] x0 = {x0:.5f}, C = {C:.5f}")
-        return None
-
-    data = np.array(crossings)
-    fname = f"test_C{C:.5f}_x0{x0:.5f}.dat"
-    np.savetxt(fname, data)
-    print(f"[DONE] x0 = {x0:.5f}, C = {C:.5f}, points = {len(data)}")
-    return fname
-
-def plot_combined_poincare(file_list):
-    plt.figure(figsize=(8, 6))
-    for fname in file_list:
-        data = np.loadtxt(fname)
-        if data.ndim == 1:
-            data = data[np.newaxis, :]
-        plt.scatter(data[:, 0], data[:, 3], s=0.5, label=fname)
-    plt.xlabel(r"$x$ (ND)", fontsize=14)
-    plt.ylabel(r"$\dot{x}$ (ND)", fontsize=14)
-    plt.title(f"Combined Poincar\u00e9 Section at C = {C:.5f}", fontsize=16)
-    plt.grid(True)
-    plt.show()
-
-if __name__ == "__main__":
-    print(f"[INFO] mu = {mu:.8f}, R1 = {R1_nd:.5f}, R2 = {R2_nd:.5f}")
-    file_list = []
-    for x0 in np.arange(XI, XF + DX/2, DX):
-        fname = generate_poincare(C, x0)
-        if fname:
-            file_list.append(fname)
-
-    if file_list:
-        plot_combined_poincare(file_list)
+    # Imaginary vy0 check
     else:
-        print("[INFO] No valid crossings to plot.")
+        arg = -C0 + x0**2 + y0**2 + 2 * ((1 - mu) / R1_0 + mu / R2_0)
+        print(f"x0 = {x0:+.3f} -> arg = {arg:.10f}")
+        if arg < 0:
+            status = "Skip: Imaginary vy0"
+
+
+    print(f"x0 = {x0:+.3f} -> {status}")
+
 
 
 

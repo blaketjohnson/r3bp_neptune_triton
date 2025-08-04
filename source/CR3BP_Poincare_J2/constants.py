@@ -5,7 +5,7 @@ This module contains constants and known values for Neptune and its moon Triton,
 Based on: Howard Curtis, Orbital Mechanics for Engineering Students, Appendix A
 
 Author: Blake T. Johnson
-Summer Thesis Project, Phase 1
+ Thesis Project
 """
 
 # Constants

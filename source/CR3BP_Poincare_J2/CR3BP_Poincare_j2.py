@@ -1,203 +1,236 @@
 """
-CR3BP_Poincare_j2.py
+CR3BP_Poincare_J2.py
+---------------------------------------
+Generates Poincaré surface-of-section data files for the classical
+Circular Restricted Three-Body Problem (CR3BP) in the Neptune–Triton system,
+with optional inclusion of Neptune's J₂ oblateness perturbation.
 
-Main driver script for generating Poincaré sections in the Neptune-Triton CR3BP system,
-with optional inclusion of Neptune's J2 perturbation.
+Features:
+    • Supports two mapping modes:
+        - "global"  : Fixed-step integration with midpoint interpolation
+        - "highres" : Event-detection for exact y=0 upward crossings
+    • Optional inclusion of Neptune's J₂ perturbation via parameters.py
+    • Runtime termination for trajectories that escape (Hill radius) or collide
+      with Neptune/Triton (user-defined minimum approach distance)
+    • Separate output folders for each mapping mode
+    • Mode-specific .dat filenames for clarity and to prevent overwrites
 
-Author: Blake T. Johnson
-Summer Thesis Project, Phase 1
+Output:
+    • .dat files containing Poincaré section crossing data
+    • Files are saved in:
+        Poincare_data_global/  or  Poincare_data_highres/
+      depending on mapping_mode
+    • Filenames include mode tag, e.g.:
+        PY-C3.00000Xi0.10000_global.dat
+
+Usage:
+    1. Configure run settings in `parameters.py`:
+        - Jacobi constant range
+        - x₀ sweep range
+        - Mapping mode ("global" or "highres")
+        - Minimum safe distances from Neptune/Triton
+        - J₂ perturbation toggle
+    2. Run the solver:
+        $ python CR3BP_Poincare_classical.py
+    3. Resulting .dat files can be plotted with `plot_CR3BP_mapper.py`
+
+Author:
+    Blake T. Johnson
+    Thesis Project
+    (c) 2025
 """
 
+
+import os
 import timeit
 import numpy as np
-import multiprocessing as mp
-from scipy.integrate import solve_ivp
 from datetime import datetime
-import os
-from constants import *
-from parameters import *
+from scipy.integrate import solve_ivp
+from constants import *       # Physical & orbital constants
+from parameters import *      # User-specified run settings
 
-# === Derived Parameters ===
+# --- Collision radii (ND) ---
+r1_min_km = R_neptune + min_distance_neptune_km
+r2_min_km = R_triton + min_distance_triton_km
+r1_min = r1_min_km / a_triton_km
+r2_min = r2_min_km / a_triton_km
+
+R_nd = R_neptune / a_triton_km
+
+# --- Derived constants ---
 mu = M_triton / (M_neptune + M_triton)
-R_nd = R_neptune_meters / a_triton_meters
-r1_min = R_neptune_meters / a_triton_meters  # Neptune collision radius (ND)
-r2_min = R_trition_meters / a_triton_meters  # Triton collision radius (ND)
+mu_star = 1.0 - mu
 
-# === Hill radius function ===
-def neptune_hill_radius(M_neptune, M_sun, a_neptune_au, AU_km, a_triton_km):
-    """Compute Neptune's Hill radius relative to the Sun, both in km and ND form."""
-    a_neptune_km = a_neptune_au * AU_km
+# --- Hill Radius Calculation (escape distance) ---
+def neptune_hill_radius():
+    """Compute Neptune's Hill radius relative to the Sun in km and ND."""
     R_H_km = a_neptune_km * (M_neptune / (3 * M_sun)) ** (1/3)
     R_H_ND = R_H_km / a_triton_km
     return R_H_km, R_H_ND
 
-# Compute once at import so workers also have it
-R_H_km, R_H_ND = neptune_hill_radius(
-    M_neptune=M_neptune,
-    M_sun=1.9885e30,
-    a_neptune_au=30.06896348,
-    AU_km=1.495978707e8,
-    a_triton_km=a_triton_km
-)
-r_max = R_H_ND  # ND escape limit
+R_H_km, R_H_ND = neptune_hill_radius()
+r_max = R_H_ND  # Escape radius in ND
 
-# === Gradient of Potential Functions ===
-def gradient_U(x, y, z):
-    r1 = np.sqrt((x + mu)**2 + y**2 + z**2)
-    r2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
-    Ox = x - (1 - mu) * (x + mu) / r1**3 - mu * (x - (1 - mu)) / r2**3
-    Oy = y - (1 - mu) * y / r1**3 - mu * y / r2**3
-    Oz = -(1 - mu) * z / r1**3 - mu * z / r2**3
-    return Ox, Oy, Oz
+# --- Accelerations ---
+def accel_classical(x, y, z, r1, r2):
+    '''Equations of motion for the classical CR3BP without J2 perturbation.'''
+    ax = x - (mu_star*(x+mu))/r1**3 - (mu*(x - mu_star))/r2**3
+    ay = y - (mu_star*y)/r1**3 - (mu*y)/r2**3
+    az = -(mu_star*z)/r1**3 - (mu*z)/r2**3
+    return ax, ay, az
 
-def gradient_U_oblate(x, y, z):
-    r1 = np.sqrt((x + mu)**2 + y**2 + z**2)
-    r2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
+def accel_j2(x, y, z, r1, r2):
+    '''Equations of motion for the CR3BP with J2 perturbation.'''
     A = (3 * J2_neptune * R_nd**2) / 2
     f = A * (1 - 5 * z**2 / r1**2) / r1**5
-    Ox = x - (1 - mu) * (x + mu) / r1**3 - mu * (x - (1 - mu)) / r2**3 + f * (x + mu)
-    Oy = y - (1 - mu) * y / r1**3 - mu * y / r2**3 + f * y
-    Oz = -(1 - mu) * z / r1**3 - mu * z / r2**3 + A * z * (3 - 5 * z**2 / r1**2) / r1**5
-    return Ox, Oy, Oz
+    ax = x - (mu_star*(x+mu))/r1**3 - (mu*(x - mu_star))/r2**3 + f * (x+mu)
+    ay = y - (mu_star*y)/r1**3 - (mu*y)/r2**3 + f * y
+    az = -(mu_star*z)/r1**3 - (mu*z)/r2**3 + A * z * (3 - 5 * z**2 / r1**2) / r1**5
+    return ax, ay, az
 
-# === Equations of Motion ===
-def equations(t, state):
+def cr3bp_equations(t, state):
+    """Runs the appropriate Equation of motion based on the J2_enabled flag."""
     x, y, z, vx, vy, vz = state
+    r1 = np.sqrt((x + mu)**2 + y**2 + z**2)
+    r2 = np.sqrt((x - mu_star)**2 + y**2 + z**2)
     if J2_enabled:
-        Ux, Uy, Uz = gradient_U_oblate(x, y, z)
+        ax, ay, az = accel_j2(x, y, z, r1, r2)
     else:
-        Ux, Uy, Uz = gradient_U(x, y, z)
-    return [vx, vy, vz, Ux + 2 * vy, Uy - 2 * vx, Uz]
+        ax, ay, az = accel_classical(x, y, z, r1, r2)
+    return [vx, vy, vz, ax + 2*vy, ay - 2*vx, az]
 
-# === Event Triggers ===
-last_event_code = None
 
-def y_cross_event(t, f):
-    return f[1]
-y_cross_event.direction = 1
-y_cross_event.terminal = False
+# --- Initial condition collision check ---
+def check_initial_conditions(x0, y0, z0):
+    R1_0 = np.sqrt((x0 + mu)**2 + y0**2 + z0**2)
+    R2_0 = np.sqrt((x0 - mu_star)**2 + y0**2 + z0**2)
+    if R1_0 <= r1_min or R2_0 <= r2_min:
+        return False
+    return True
 
-def escape_or_collision_event(t, f):
-    global last_event_code
-    last_event_code = None
-    status = 1.0
+# --- Runtime escape/collision event ---
+def escape_or_collision_event(t, state):
+    """Stop integration if escape or collision occurs."""
+    x, y, z = state[0], state[1], state[2]
+    R1 = np.sqrt((x + mu)**2 + y**2 + z**2)       # Neptune distance
+    R2 = np.sqrt((x - mu_star)**2 + y**2 + z**2)  # Triton distance
+    R_total = np.sqrt(x**2 + y**2 + z**2)         # Distance from barycenter
+    # Check conditions
+    if R1 <= r1_min:    # Neptune collision
+        return 0
+    if R2 <= r2_min:    # Triton collision
+        return 0
+    if R_total >= r_max:  # Escape
+        return 0
 
-    x, y, z = f[0], f[1], f[2]
-    R1 = np.sqrt((x + mu)**2 + y**2 + z**2)
-    R2 = np.sqrt((x - (1 - mu))**2 + y**2 + z**2)
-    R_total = np.sqrt(x**2 + y**2 + z**2)
+    return 1  # No event yet
 
-    if R1 <= r1_min:
-        last_event_code = -1
-        status = 0.0
-    elif R2 <= r2_min:
-        last_event_code = -2
-        status = 0.0
-    elif R_total >= r_max:
-        last_event_code = 1
-        status = 0.0
-
-    return status
-
+# Configure event properties
 escape_or_collision_event.terminal = True
 escape_or_collision_event.direction = -1
 
-# === Output Setup ===
-data_folder = "Poincare_data"
-os.makedirs(data_folder, exist_ok=True)
-log_path = os.path.join(data_folder, "run_log.txt")
-log_file = open(log_path, "w")
+# --- Poincaré section generation ---
+def y_cross_event(t, state):
+    return state[1]  # y coordinate
+y_cross_event.direction = 1
+y_cross_event.terminal = False
 
-# === Poincaré Map Generation ===
-def generate_poincare(args):
-    C, x0 = args
-    y0, z0 = YI, 0.0
-    print(f"[Working] C = {C:.5f}, x0 = {x0:.5f}")
-
-    R1_0 = np.sqrt((x0 + mu)**2 + y0**2 + z0**2)
-    R2_0 = np.sqrt((x0 - (1 - mu))**2 + y0**2 + z0**2)
-    Rtot_0 = np.sqrt(x0**2 + y0**2 + z0**2)
-
-    if R1_0 <= r1_min or R2_0 <= r2_min or Rtot_0 >= r_max:
-        return f"Skipping x0 = {x0:.5f} (initial collision/escape)"
-
-    arg = -C + x0**2 + y0**2 + 2 * ((1 - mu) / R1_0 + mu / R2_0)
-    if arg < 0:
-        return f"Skipping x0 = {x0:.5f} (imaginary vy0)"
-
-    vy0 = np.sqrt(arg)
-    initial_state = [x0, y0, z0, 0.0, vy0, 0.0]
-
-    # === Solve in ND time ===
-    sol = solve_ivp(
-    equations,
-    [0, tlim_sec],  # ND time span
-    initial_state,
-    events=[y_cross_event, escape_or_collision_event],
-    method='DOP853',
-    max_step=dt_sec,          # limit the largest step size
-    first_step=dt_sec / 100.0,
-    rtol=1e-12,
-    atol=1e-12
-)
-
-
-    if sol.status == 1 and len(sol.t_events[1]) > 0:
-        reason = {-1: "Neptune Collision", -2: "Triton Collision", 1: "Escape"}.get(last_event_code, "Other")
-        return f"x0 = {x0:.5f}, C = {C:.5f} -> Excluded ({reason})"
-
-    crossings, times = [], []
-    # Use solver’s built-in event detection results
-    if sol.t_events[0].size > 0:
-        for k in range(sol.t_events[0].size):
-            ye = sol.y_events[0][k]
-            crossings.append(ye)
-            times.append(sol.t_events[0][k])
-
-    if not crossings:
-        return f"x0 = {x0:.5f}, C = {C:.5f}, crossings = 0"
-
-    data = np.column_stack((np.array(crossings), np.array(times)))
-    fname = f"PY-C{C:.5f}_Xi{x0:.5f}.dat"
-    np.savetxt(os.path.join(data_folder, fname), data)
-
-    return f"x0 = {x0:.5f}, C = {C:.5f}, crossings = {len(data)}"
-
-# === Main Execution ===
-if __name__ == "__main__":
-    print(f"Neptune Hill radius: {R_H_km:.6f} km")
-    print(f"Neptune Hill radius (ND): {R_H_ND:.6f}")
-    print(f"[Info] mu = {mu:.8f}, R_nd = {R_nd:.6f}")
-    print(f"Initial y0 = {YI}")
-    print("\nRunning...")
-
-    start = timeit.default_timer()
-
-    x0_values = np.arange(XI, XF + DX/2, DX)
-    Cs = np.arange(C0, CF + dC/2, dC)
-    input_pairs = [(C, x0) for C in Cs for x0 in x0_values]
-
-    with mp.Pool(mp.cpu_count()) as pool:
-        results = pool.map(generate_poincare, input_pairs)
-
-    for res in results:
-        print(res)
-        log_file.write(res + "\n")
-
-    stop = timeit.default_timer()
-    runtime = stop - start
-
-    if runtime < 60:
-        runtime_str = f"{runtime:.2f} seconds"
-    elif runtime < 3600:
-        runtime_str = f"{runtime/60:.2f} minutes"
+# --- Main integration loop for one trajectory ---
+def generate_poincare(C, x0):
+    # Choose initial y0 based on mapping mode
+    if mapping_mode.lower() == "global":
+        y0 = 0.0
     else:
-        runtime_str = f"{runtime/3600:.2f} hours"
+        y0 = YI
+    z0 = 0.0
 
+
+    # Skip if collision at start
+    if not check_initial_conditions(x0, y0, z0):
+        return f"Skip x0={x0:.5f} - initial collision"
+
+    # vy0 from Jacobi constant
+    R1_0 = np.sqrt((x0 + mu)**2 + y0**2 + z0**2)
+    R2_0 = np.sqrt((x0 - mu_star)**2 + y0**2 + z0**2)
+    arg = -C + x0**2 + y0**2 + 2*((mu_star)/R1_0 + mu/R2_0)
+    if arg < 0:
+        return f"Skip x0={x0:.5f} - imaginary vy0"
+    vy0 = np.sqrt(arg)
+
+    # Initial state
+    state0 = [x0, y0, z0, 0.0, vy0, 0.0]
+    fname = f"PY-C{C:.5f}Xi{round(x0, 5)}_{mapping_mode.lower()}.dat"
+    fpath = os.path.join(output_folder, fname)
+    if os.path.exists(fpath): os.remove(fpath)
+
+    # --- HIGHRES mode ---
+    if mapping_mode.lower() == "highres":
+        sol = solve_ivp(
+            cr3bp_equations,
+            [0, tlim_sec],
+            state0,
+            events=[y_cross_event, escape_or_collision_event],
+            method='DOP853',
+            rtol=1e-12,
+            atol=1e-12
+        )
+        for crossing in sol.y_events[0]:
+            line = list(crossing) + [x0, vy0, C]
+            with open(fpath, "a") as f:
+                np.savetxt(f, [line], fmt="%.14e")
+
+    # --- GLOBAL mode ---
+    else:
+        t_eval = np.arange(0, tlim_sec + dt_sec, dt_sec)
+        sol = solve_ivp(
+            cr3bp_equations,
+            [0, tlim_sec],
+            state0,
+            t_eval=t_eval,
+            events=[escape_or_collision_event],
+            method='DOP853',
+            rtol=1e-12,
+            atol=1e-12
+        )
+        y_vals = sol.y[1]
+        for i in range(1, len(y_vals)):
+            if y_vals[i-1] <= 0 and y_vals[i] > 0:  # upward crossing
+                crossing_state = 0.5 * (sol.y[:, i-1] + sol.y[:, i])
+                line = list(crossing_state) + [x0, vy0, C]
+                with open(fpath, "a") as f:
+                    np.savetxt(f, [line], fmt="%.14e")
+
+    return f"x0={x0:.5f} - file saved"
+
+# --- Run all ---
+if __name__ == "__main__":
+    print("CR3BP Poincaré Map Generator")
+    print(f"Escape radius (Hill): {R_H_km:.2f} km ({R_H_ND:.5f} ND)")
+    print(f"Neptune collision limit: {r1_min_km:.1f} km ({r1_min:.5f} ND)")
+    print(f"Triton  collision limit: {r2_min_km:.1f} km ({r2_min:.5f} ND)")
+    if mapping_mode.lower() == "global":
+        print("Mapping mode: GLOBAL (fixed-step, midpoint interpolation, y0=0.0)")
+    elif mapping_mode.lower() == "highres":
+        print(f"Mapping mode: HIGHRES (event detection, y0={YI})")
+    else:
+        print(f"Mapping mode: {mapping_mode.upper()} (unrecognized, defaulting to global)")
+    print("Start:", datetime.now())
+
+    output_folder = f"Poincare_data_{mapping_mode.lower()}"
+    os.makedirs(output_folder, exist_ok=True)
+
+
+    start_time = timeit.default_timer()
+    Cs = np.arange(C0, CF + dC/2, dC)
+    x0_values = np.arange(XI, XF + DX/2, DX)
+    for C in Cs:
+        for x0 in x0_values:
+            msg = generate_poincare(C, x0)
+            print(msg)
+    elapsed = timeit.default_timer() - start_time
+    print(f"Done in {elapsed/60:.2f} min")
     print("End:", datetime.now())
-    print(f"Runtime = {runtime_str}")
-    log_file.write(f"Runtime = {runtime_str}\n")
-    log_file.close()
+
 
 
 

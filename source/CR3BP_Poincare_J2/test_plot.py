@@ -1,10 +1,3 @@
-"""
-plot_CR3BP_professor_style.py
-
-Plots Poincaré section from .dat files in the same style as my professor's script.
-Works directly with the .dat format from CR3BP_Poincare_classical.py.
-"""
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,6 +10,10 @@ DX = 0.1000       # step between x0 values
 
 # Folder with your generated .dat files
 data_folder = "Poincare_data_CR3BP"
+
+# Folder to save plot
+plot_folder = "Plot_Results"
+os.makedirs(plot_folder, exist_ok=True)
 
 # === Matplotlib style ===
 plt.rcParams["figure.autolayout"] = True
@@ -57,4 +54,11 @@ plt.grid(True, alpha=0.3)
 plt.xlim(-1.1, 1.1)
 plt.ylim(-1.2, 1.2)
 
+# === Save plot ===
+save_name = f"Poincare_C{CJ:.5f}_DX{DX:.4f}.png"
+save_path = os.path.join(plot_folder, save_name)
+plt.savefig(save_path, dpi=300)
+print(f"✅ Plot saved to: {save_path}")
+
 plt.show()
+

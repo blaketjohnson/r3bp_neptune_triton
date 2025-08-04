@@ -9,13 +9,13 @@ Author: Blake T. Johnson
 Thesis Project
 """
 # === Jacobi Constant Sweep ===
-C0 = 3.0144       # Initial Jacobi constant
-CF = 3.0144      # Final Jacobi constant
+C0 = 2.9000       # Initial Jacobi constant
+CF = 2.9000      # Final Jacobi constant
 dC = 0.1000       # Jacobi constant increment
 
 # === x0 Sweep Range (Non-Dimensional) ===
-XI = -0.20       # Initial x0 (non-dimensional)
-XF = 1.20       # Final x0 (non-dimensional)
+XI = -0.2       # Initial x0 (non-dimensional)
+XF = 1.2       # Final x0 (non-dimensional)
 DX = 0.1000       # Step size for x0 (non-dimensional)
 
 # === Minimum safe distances from each body (km) ===

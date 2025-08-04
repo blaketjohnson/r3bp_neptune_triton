@@ -48,6 +48,36 @@ from datetime import datetime
 from scipy.integrate import solve_ivp
 from constants import *       # Physical & orbital constants
 from parameters import *      # User-specified run settings
+from datetime import datetime
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+def make_filename(C, x0):
+    return f"CJ{C:.5f}_Xi{x0:.5f}_DX{DX:.4f}_dt{dt_sec:.1f}_{mapping_mode.lower()}_{timestamp}.dat"
+
+
+# --- OUTPUT FOLDER LOGIC ---
+# Absolute path to your CR3BP_Poincare_J2 directory
+project_root = "/Users/blakejohnson/Documents/r3bp_neptune_triton/source/CR3BP_Poincare_J2"
+
+# Mapping mode folder
+mode_folder = "highres" if mapping_mode.lower() == "highres" else "global"
+
+# Perturbation folder
+perturb_folder = "perturbed" if J2_enabled else "non_perturbed"
+
+# Data and results folders
+data_dir = os.path.join(project_root, mode_folder, perturb_folder, "data")
+results_dir = os.path.join(project_root, mode_folder, perturb_folder, "results")
+
+output_folder = data_dir  # save .dat files here
+
+# Make sure they exist
+os.makedirs(data_dir, exist_ok=True)
+os.makedirs(results_dir, exist_ok=True)
+
+print(f"Data will be saved in: {data_dir}")
+print(f"Plots should be saved in: {results_dir}")
+
 
 # --- Collision radii (ND) ---
 r1_min_km = R_neptune + min_distance_neptune_km
@@ -159,8 +189,9 @@ def generate_poincare(C, x0):
 
     # Initial state
     state0 = [x0, y0, z0, 0.0, vy0, 0.0]
-    fname = f"PY-C{C:.5f}Xi{round(x0, 5)}_{mapping_mode.lower()}.dat"
+    fname = make_filename(C, x0)
     fpath = os.path.join(output_folder, fname)
+
     if os.path.exists(fpath): os.remove(fpath)
 
     # --- HIGHRES mode ---
@@ -216,8 +247,6 @@ if __name__ == "__main__":
         print(f"Mapping mode: {mapping_mode.upper()} (unrecognized, defaulting to global)")
     print("Start:", datetime.now())
 
-    output_folder = f"Poincare_data_{mapping_mode.lower()}"
-    os.makedirs(output_folder, exist_ok=True)
 
 
     start_time = timeit.default_timer()
@@ -230,6 +259,8 @@ if __name__ == "__main__":
     elapsed = timeit.default_timer() - start_time
     print(f"Done in {elapsed/60:.2f} min")
     print("End:", datetime.now())
+    print(f"All data saved in: {data_dir}")
+
 
 
 

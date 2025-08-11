@@ -13,8 +13,11 @@ poincare_maps/
 lit_review/
 20231110P02/
 source/CR3BP_Poincare_J2/__pycache__/
+source/CR3BP_Poincare_J2/compare.py
+source/CR3BP_Poincare_J2/comparison_plot.py
 source/neptune_triton_models/__pycache__/
 source/neptune_triton_models/old/
+source/neptune_triton_models/r3bp_with_perturbations/__pycache__
 
 # Ignore virtual environment if present
 venv/

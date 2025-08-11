@@ -69,6 +69,17 @@ This work is part of graduate thesis research investigating the complex dynamics
 - Effects of realistic perturbations on idealized models
 - Phase space structure and transport mechanisms
 
+## Documentation
+
+For detailed explanations of the methods, equations, and processes used in this project, please refer to the documentation in the `/docs` folder:
+
+- **[R2BP Documentation](source/neptune_triton_models/docs/R2BP_Documentation.md)**: Restricted Two-Body Problem theory and implementation
+- **[RTBP Documentation](source/neptune_triton_models/docs/RTBP_Documentation.md)**: Restricted Three-Body Problem mathematical framework
+- **[Jacobi Constant](source/neptune_triton_models/docs/Jacobi_Constant.md)**: Energy integral and zero-velocity surfaces
+- **[Lagrange Points](source/neptune_triton_models/docs/Lagrange_Points.md)**: Equilibrium solutions and stability analysis
+- **[Zero-Velocity Curves](source/neptune_triton_models/docs/Zero_Velocity_Curves.md)**: Forbidden regions and motion boundaries
+- **[Stability Analysis](source/neptune_triton_models/docs/Stability_Analysis.md)**: Linear and nonlinear stability theory
+
 ## References
 
 Based on methods from:

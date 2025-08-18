@@ -31,20 +31,26 @@ Implements both **classical CR3BP** and an extended model with **Neptune’s J�
   <img src="source/CR3BP_Poincare_J2/highres/non_perturbed/results/Poincare_C3.01430_DX0.0005_highres.png" alt="Poincaré surface (CR3BP+J₂)" width="500"/>
 </p>
 
-
 ---
 
 ## 🚀 Quick Start
+
 Clone the repo and install dependencies:
-git clone https://github.com/YOURUSERNAME/r3bp_neptune_triton.git
+```bash
+git clone git@github.com:blaketjohnson/r3bp_neptune_triton.git
 cd r3bp_neptune_triton
 pip install -r requirements.txt
+```
 
 Run a sample Poincaré map:
+```bash
 python scripts/run_poincare.py
+```
 
 Run Jacobi constant solver:
+```bash
 python scripts/jacobi_solver.py
+```
 
 ---
 
@@ -55,23 +61,9 @@ python scripts/jacobi_solver.py
 - Matplotlib
 - PyTest (optional, for unit tests)
 
-
 Install all requirements with:
 ```bash
 pip install -r requirements.txt
-
-```
-
-Run a sample Poincaré map:
-
-```bash
-python scripts/run_poincare.py
-```
-
-Run Jacobi constant solver:
-
-```bash
-python scripts/jacobi_solver.py
 ```
 
 ---
@@ -100,8 +92,8 @@ r3bp_neptune_triton/
 
 ## 📚 Background
 This project builds on classical CR3BP methods and extends them with Neptune’s oblateness.  
-It demonstrates numerical analysis of stability regions and surface of section methods for dynamical astronomy.
-These techniques are also relevant to mission trajectory design, orbital stability analysis, and spacecraft dynamics in planetary systems.
+It demonstrates numerical analysis of stability regions and surface of section methods for dynamical astronomy.  
+These techniques are also relevant to **mission trajectory design, orbital stability analysis, and spacecraft dynamics** in planetary systems.
 
 ---
 

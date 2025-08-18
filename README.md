@@ -1,92 +1,87 @@
-# R3BP Neptune-Triton Analysis
+# Neptune–Triton Restricted Three-Body Problem (CR3BP + J₂)
 
-## Overview
-This repository contains computational analysis of the Neptune-Triton system using the Circular Restricted Three-Body Problem (CR3BP) and related celestial mechanics methods. The project includes Poincaré surface-of-section analysis, stability studies, and perturbation effects including Neptune's J₂ oblateness.
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Project Structure
-
-### `source/CR3BP_Poincare_J2/`
-Contains the enhanced CR3BP analysis with optional J₂ perturbation effects:
-- **CR3BP_Poincare_j2.py**: Main Poincaré section generator with J₂ perturbation support
-- **constants.py**: Physical constants for the Neptune-Triton system
-- **parameters.py**: Configuration parameters for simulations
-- **plot_PS2_J2.py**: Visualization tools for Poincaré sections
-
-### `source/neptune_triton_models/`
-Core Neptune-Triton dynamical models and analysis tools:
-- **r3bp/**: Standard three-body problem implementations
-- **r3bp_with_perturbations/**: Extended models including various perturbations
-- **docs/**: Detailed documentation and analysis results
-- **figures/**: Generated plots and visualizations
-
-## Key Features
-
-- **Poincaré Surface-of-Section Analysis**: Generate and visualize phase space structures
-- **J₂ Perturbation Effects**: Include Neptune's oblateness in dynamical models
-- **Multiple Integration Methods**: Support for both fixed-step and event-detection approaches
-- **Stability Analysis**: Lagrange point identification and stability assessment
-- **Comparative Studies**: Tools for comparing different modeling approaches
-
-## Getting Started
-
-1. **Install Dependencies**:
-   ```bash
-   pip install numpy scipy matplotlib numba
-   ```
-
-2. **Configure Parameters**:
-   Edit the relevant `parameters.py` files to set:
-   - Jacobi constant ranges
-   - Initial condition sweeps
-   - Integration settings
-   - Perturbation toggles
-
-3. **Run Simulations**:
-   ```bash
-   cd source/CR3BP_Poincare_J2/
-   python CR3BP_Poincare_j2.py
-   ```
-
-4. **Generate Plots**:
-   ```bash
-   python plot_PS2_J2.py
-   ```
-
-## Output
-
-The simulations generate:
-- `.dat` files containing Poincaré section crossing data
-- Plots showing phase space structure and dynamics
-- Analysis results for stability and perturbation effects
-
-Data files are organized by simulation type and parameters for easy comparison and analysis.
-
-## Research Context
-
-This work is part of graduate thesis research investigating the complex dynamics of the Neptune-Triton system. The analysis provides insights into:
-- Orbital stability regions
-- Chaotic vs. regular motion boundaries  
-- Effects of realistic perturbations on idealized models
-- Phase space structure and transport mechanisms
-
-## Documentation
-
-For detailed explanations of the methods, equations, and processes used in this project, please refer to the documentation in the `/docs` folder:
-
-- **[R2BP Documentation](source/neptune_triton_models/docs/R2BP_Documentation.md)**: Restricted Two-Body Problem theory and implementation
-- **[RTBP Documentation](source/neptune_triton_models/docs/RTBP_Documentation.md)**: Restricted Three-Body Problem mathematical framework
-- **[Jacobi Constant](source/neptune_triton_models/docs/Jacobi_Constant.md)**: Energy integral and zero-velocity surfaces
-- **[Lagrange Points](source/neptune_triton_models/docs/Lagrange_Points.md)**: Equilibrium solutions and stability analysis
-- **[Zero-Velocity Curves](source/neptune_triton_models/docs/Zero_Velocity_Curves.md)**: Forbidden regions and motion boundaries
-- **[Stability Analysis](source/neptune_triton_models/docs/Stability_Analysis.md)**: Linear and nonlinear stability theory
-
-## References
-
-Based on methods from:
-- Szebehely, V. (1967). *Theory of Orbits*
-- Murray, C.D. & Dermott, S.F. (1999). *Solar System Dynamics*
-- And contemporary research in celestial mechanics
+Numerical experiments in the **Circular Restricted Three-Body Problem (CR3BP)** with applications to the Neptune–Triton system.  
+Implements both **classical CR3BP** and an extended model with **Neptune’s J₂ oblateness perturbation**, producing Poincaré maps, stability regions, and trajectories.
 
 ---
-*Author: Blake T. Johnson*  
-*Graduate Thesis Project, 2025*
+
+## ✨ Features
+- Classical **CR3BP equations of motion**
+- **J₂-perturbed CR3BP** for Neptune’s oblateness
+- Automated **Jacobi constant calculation**
+- Root solvers for **Lagrange points (L1–L3)**
+- Batch generation of **Poincaré surfaces of section**
+- Parallelized integration (DOP853 with event detection)
+
+---
+
+## 📊 Example Results
+
+### Poincaré Surfaces of Section
+<p align="center">
+  <img src="docs/poincare_cr3bp.png" alt="Poincaré surface (CR3BP)" width="500"/>
+</p>
+
+<p align="center">
+  <img src="docs/poincare_j2.png" alt="Poincaré surface (CR3BP+J₂)" width="500"/>
+</p>
+
+---
+
+## 🚀 Quick Start
+
+Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/YOURUSERNAME/r3bp_neptune_triton.git
+cd r3bp_neptune_triton
+pip install -r requirements.txt
+```
+
+Run a sample Poincaré map:
+
+```bash
+python scripts/run_poincare.py
+```
+
+Run Jacobi constant solver:
+
+```bash
+python scripts/jacobi_solver.py
+```
+
+---
+
+## 📂 Repository Structure
+```
+r3bp_neptune_triton/
+├── src/
+│   ├── equations/       # CR3BP and J₂ equations of motion
+│   ├── rootfinding/     # L1–L3 solvers
+│   ├── poincare/        # Poincaré event handlers + plotting
+│   ├── utils/           # constants, scaling, wrappers
+├── scripts/
+│   ├── run_poincare.py
+│   ├── jacobi_solver.py
+│   └── plot_utils.py
+├── docs/
+│   ├── poincare_cr3bp.png
+│   ├── poincare_j2.png
+└── tests/
+    ├── test_equations.py
+    └── test_poincare.py
+```
+
+---
+
+## 📚 Background
+This project builds on classical CR3BP methods and extends them with Neptune’s oblateness.  
+It demonstrates numerical analysis of stability regions and surface of section methods for dynamical astronomy.
+
+---
+
+## 📜 License
+MIT License. See LICENSE for details.

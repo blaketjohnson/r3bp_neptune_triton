@@ -29,12 +29,12 @@ This repository demonstrates advanced skills in **orbital mechanics, numerical m
 
 ### Classical CR3BP Surface of Section
 <p align="center">
-  <img src="docs/poincare_cr3bp.png" alt="Poincaré surface (CR3BP)" width="500"/>
+  <img src="source/CR3BP_Poincare_J2/highres/non_perturbed/results/Poincare_C3.01000_DX0.1000_highres.png" alt="Poincaré surface (CR3BP)" width="500"/>
 </p>
 
 ### CR3BP + J₂ Perturbation
 <p align="center">
-  <img src="docs/poincare_j2.png" alt="Poincaré surface (CR3BP+J₂)" width="500"/>
+  <img src="source/CR3BP_Poincare_J2/highres/non_perturbed/results/Poincare_C3.01430_DX0.0005_highres.png" alt="Poincaré surface (CR3BP+J₂)" width="500"/>
 </p>
 
 ---

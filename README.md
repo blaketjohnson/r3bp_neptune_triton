@@ -22,11 +22,11 @@ Implements both **classical CR3BP** and an extended model with **Neptune’s J�
 
 ### Poincaré Surfaces of Section
 <p align="center">
-  <img src="docs/poincare_cr3bp.png" alt="Poincaré surface (CR3BP)" width="500"/>
+  <img src="source/CR3BP_Poincare_J2/highres/non_perturbed/results/Poincare_C3.01000_DX0.1000_highres.png" alt="Poincaré surface (CR3BP)" width="500"/>
 </p>
 
 <p align="center">
-  <img src="docs/poincare_j2.png" alt="Poincaré surface (CR3BP+J₂)" width="500"/>
+  <img src="source/CR3BP_Poincare_J2/highres/non_perturbed/results/Poincare_C3.01430_DX0.0005_highres.png" alt="Poincaré surface (CR3BP+J₂)" width="500"/>
 </p>
 
 ---

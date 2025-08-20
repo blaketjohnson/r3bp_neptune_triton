@@ -14,7 +14,7 @@ Implements both **classical CR3BP** and an extended model with **Neptune’s J�
 
 ---
 
-## ✨ Highlights for Recruiters
+## Highlights for Recruiters
 - Implements both **classical CR3BP** and **J₂-perturbed CR3BP**.  
 - Automated **Jacobi constant calculator** and **root solvers** for L1–L3.  
 - Batch generation of **Poincaré surfaces of section** with multiprocessing.  
@@ -25,7 +25,7 @@ This repository demonstrates advanced skills in **orbital mechanics, numerical m
 
 ---
 
-## 📊 Example Results
+## Example Results
 
 ### Classical CR3BP Surface of Section
 <p align="center">
@@ -39,7 +39,7 @@ This repository demonstrates advanced skills in **orbital mechanics, numerical m
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 Clone the repo and install dependencies:
 ```bash
@@ -60,7 +60,7 @@ python scripts/jacobi_solver.py
 
 ---
 
-## 🛠️ Dependencies
+## Dependencies
 - Python 3.10+
 - NumPy
 - SciPy
@@ -74,7 +74,7 @@ pip install -r requirements.txt
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 ```
 r3bp_neptune_triton/
 ├── src/
@@ -93,17 +93,17 @@ r3bp_neptune_triton/
 
 ---
 
-## 📚 Background
+## Background
 This project builds on classical CR3BP methods and extends them with Neptune’s oblateness.  
 It demonstrates **stability region analysis, dynamical astronomy methods, and spacecraft trajectory design techniques.**
 
 ---
 
-## 📌 About the Author
+## About the Author
 This project is part of a portfolio in **orbital mechanics, mission design, and aerospace systems engineering**.  
 More projects available at: [GitHub Portfolio](https://github.com/blaketjohnson)
 
 ---
 
-## 📜 License
+## License
 MIT License — see [LICENSE](LICENSE).

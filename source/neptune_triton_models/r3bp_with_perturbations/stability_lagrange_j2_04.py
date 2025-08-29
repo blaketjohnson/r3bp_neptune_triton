@@ -17,7 +17,7 @@ from scipy.linalg import eigvals
 from constants import J2_neptune, R_neptune_meters, a_triton_meters
 from lagrange_points_j2_02 import get_lagrange_points_and_constants
 
-sys.path.append('/Users/blakejohnson/Documents/rtbp_neptune_triton/source/neptune_triton_models/r3bp')
+sys.path.append('/Users/blakejohnson/Documents/r3bp_neptune_triton/source/neptune_triton_models/r3bp')
 from r3bp_calculations_02 import mu_r3bp
 
 

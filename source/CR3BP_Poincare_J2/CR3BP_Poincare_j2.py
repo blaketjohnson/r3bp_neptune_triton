@@ -47,6 +47,7 @@ import numpy as np
 from datetime import datetime
 from scipy.integrate import solve_ivp
 from constants import *       # Physical & orbital constants
+#from source.CR3BP_Poincare_J2.constants import *
 from parameters import *      # User-specified run settings
 from datetime import datetime
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

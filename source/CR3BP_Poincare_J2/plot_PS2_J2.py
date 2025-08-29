@@ -135,8 +135,8 @@ sc = plt.scatter(all_x, all_xdot, s=0.05, c=all_xi_vals,
 # --- Labels, title, and colorbar ---
 title_str = (
     f"Poincaré Map — CJ={CJ:.5f}, DX={DX:.4f}, "
-    f"x₀ Range: {XI:.3f} → {XF:.3f}\n"
-    f"Mode={mapping_mode.capitalize()}, J₂={'On' if J2_enabled else 'Off'}"
+    f"x_0 Range: {XI:.3f} → {XF:.3f}\n"
+    f"Mode={mapping_mode.capitalize()}, J_2={'On' if J2_enabled else 'Off'}"
 )
 plt.title(title_str, fontsize=14)
 

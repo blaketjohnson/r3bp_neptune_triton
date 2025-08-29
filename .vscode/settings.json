@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./source/neptune_triton_models/r3bp"
+    ]
+}

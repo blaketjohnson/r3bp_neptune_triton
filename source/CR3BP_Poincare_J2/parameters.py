@@ -9,14 +9,14 @@ Author: Blake T. Johnson
 Thesis Project
 """
 # === Jacobi Constant Sweep ===
-C0 = 3.0100       # Initial Jacobi constant
-CF = 3.0100      # Final Jacobi constant
-dC = 0.0200       # Jacobi constant increment
+C0 = 3.0135       # Initial Jacobi constant
+CF = 3.0135        # Final Jacobi constant
+dC = 0.001       # Jacobi constant increment
 
 # === x0 Sweep Range (Non-Dimensional) ===
-XI = 0.959180       # Initial x0 (non-dimensional)
-XF = 0.999780       # Final x0 (non-dimensional)
-DX = 0.000500       # Step size for x0 (non-dimensional)
+XI = 0.959160       # Initial x0 (non-dimensional)
+XF = 1.041552       # Final x0 (non-dimensional)
+DX = 0.0002       # Step size for x0 (non-dimensional)
 
 # === Minimum safe distances from each body (km) ===
 min_distance_neptune_km = 0.0   # Above surface

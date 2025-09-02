@@ -150,8 +150,13 @@ plt.xlim(-2.0, 2.0)
 plt.ylim(-2.0, 2.0)
 
 # --- Save plot ---
-save_name = f"Poincare_C{CJ:.5f}_DX{DX:.4f}_{mapping_mode.lower()}_{timestamp}.png"
+# === Perturbation label for filename ===
+perturb_tag = "perturbed" if J2_enabled else "non_perturbed"
+
+# === New filename format ===
+save_name = f"C{CJ:.5f}_x0_{XI:.4f}_xf_{XF:.4f}_{perturb_tag}.png"
 save_path = os.path.join(results_folder, save_name)
+
 plt.savefig(save_path, dpi=300)
 
 print(f"Plot saved to: {save_path}")

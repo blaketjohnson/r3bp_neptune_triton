@@ -1,0 +1,62 @@
+Data will be saved in: /Users/blakejohnson/Documents/r3bp_neptune_triton/source/CR3BP_Poincare_J2/highres/non_perturbed/data
+Plots should be saved in: /Users/blakejohnson/Documents/r3bp_neptune_triton/source/CR3BP_Poincare_J2/highres/non_perturbed/results
+CR3BP Poincaré Map Generator
+Escape radius (Hill): 115954268.64 km (326.85271 ND)
+Neptune collision limit: 24764.0 km (0.06980 ND)
+Triton  collision limit: 1353.0 km (0.00381 ND)
+Mapping mode: HIGHRES (event detection, y0=0.0)
+Start: 2025-08-31 12:46:03.564288
+x0=-1.00009 - file saved
+x0=-0.99809 - file saved
+x0=-0.99609 - file saved
+x0=-0.99409 - file saved
+x0=-0.99209 - file saved
+x0=-0.99009 - file saved
+x0=-0.98809 - file saved
+x0=-0.98609 - file saved
+x0=-0.98409 - file saved
+x0=-0.98209 - file saved
+x0=-0.98009 - file saved
+x0=-0.97809 - file saved
+x0=-0.97609 - file saved
+x0=-0.97409 - file saved
+x0=-0.97209 - file saved
+x0=-0.97009 - file saved
+x0=-0.96809 - file saved
+x0=-0.96609 - file saved
+x0=-0.96409 - file saved
+x0=-0.96209 - file saved
+x0=-0.96009 - file saved
+x0=-0.95809 - file saved
+x0=-0.95609 - file saved
+x0=-0.95409 - file saved
+x0=-0.95209 - file saved
+x0=-0.95009 - file saved
+x0=-0.94809 - file saved
+x0=-0.94609 - file saved
+x0=-0.94409 - file saved
+x0=-0.94209 - file saved
+x0=-0.94009 - file saved
+x0=-0.93809 - file saved
+x0=-0.93609 - file saved
+x0=-0.93409 - file saved
+x0=-0.93209 - file saved
+x0=-0.93009 - file saved
+x0=-0.92809 - file saved
+x0=-0.92609 - file saved
+x0=-0.92409 - file saved
+x0=-0.92209 - file saved
+x0=-0.92009 - file saved
+x0=-0.91809 - file saved
+x0=-0.91609 - file saved
+Traceback (most recent call last):
+  File "/Users/blakejohnson/Documents/r3bp_neptune_triton/source/CR3BP_Poincare_J2/CR3BP_Poincare_J2.py", line 258, in <module>
+    msg = generate_poincare(C, x0)
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blakejohnson/Documents/r3bp_neptune_triton/source/CR3BP_Poincare_J2/CR3BP_Poincare_J2.py", line 200, in generate_poincare
+    sol = solve_ivp(
+          ^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/scipy/integrate/_ivp/ivp.py", line 674, in solve_ivp
+    g_new = [event(t, y) for event in events]
+             ^^^^^^^^^^^
+KeyboardInterrupt

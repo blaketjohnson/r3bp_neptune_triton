@@ -146,8 +146,12 @@ cbar.set_label(r"Initial $x_0$ (nondimensional)", fontsize=12)
 plt.xlabel(r"$x$ (nondimensional units)", fontsize=16)
 plt.ylabel(r"$\dot{x}$ (nondimensional units)", fontsize=16)
 plt.grid(True, alpha=0.3)
-plt.xlim(-2.0, 2.0)
-plt.ylim(-2.0, 2.0)
+
+# --- Adjust margins ---
+x_margin = 0.05 * (np.max(all_x) - np.min(all_x))
+y_margin = 0.05 * (np.max(all_xdot) - np.min(all_xdot))
+plt.xlim(np.min(all_x) - x_margin, np.max(all_x) + x_margin)
+plt.ylim(np.min(all_xdot) - y_margin, np.max(all_xdot) + y_margin)
 
 # --- Save plot ---
 # === Perturbation label for filename ===

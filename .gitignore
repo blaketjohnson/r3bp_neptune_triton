@@ -28,3 +28,10 @@ source/neptune_triton_models/r3bp_with_perturbations/test_file.py
 # Ignore all .dat files globally
 *.dat
 
+# LaTeX build and source files
+source/CR3BP_Poincare_J2/poincare_map_comparison.aux
+source/CR3BP_Poincare_J2/poincare_map_comparison.fdb_latexmk
+source/CR3BP_Poincare_J2/poincare_map_comparison.fls
+source/CR3BP_Poincare_J2/poincare_map_comparison.log
+source/CR3BP_Poincare_J2/poincare_map_comparison.tex
+
